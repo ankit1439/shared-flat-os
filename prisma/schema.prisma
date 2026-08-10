@@ -1,0 +1,264 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Member {
+  id        String   @id
+  name      String
+  createdAt DateTime @default(now())
+
+  expensesPaid       Expense[]            @relation("PaidBy")
+  participations     ExpenseParticipant[]
+  settlementsFrom    Settlement[]         @relation("FromMember")
+  settlementsTo      Settlement[]         @relation("ToMember")
+  shoppingAdded      ShoppingItem[]       @relation("AddedBy")
+  shoppingPurchased  ShoppingItem[]       @relation("PurchasedBy")
+  inventoryUpdates   InventoryItem[]
+  keysOwned          KeyItem[]            @relation("OriginalOwner")
+  keyHoldings        KeyAssignment[]      @relation("Holder")
+  choresAssigned     TaskAssignment[]     @relation("Assignee")
+  choresCompleted    TaskAssignment[]     @relation("CompletedBy")
+  issuesReported     MaintenanceIssue[]   @relation("Reporter")
+  issuesAssigned     MaintenanceIssue[]   @relation("Assignee")
+  devices            Device[]
+  absences           AbsencePeriod[]
+  milk               MilkParticipation?
+  presence           Presence?
+  remindersFrom      Reminder[]           @relation("ReminderFrom")
+  remindersTo        Reminder[]           @relation("ReminderTo")
+  notifications      Notification[]
+  notesUpdated       ImportantNote[]      @relation("NoteUpdater")
+}
+
+model Expense {
+  id          String         @id @default(cuid())
+  type        String
+  title       String
+  amountPaise Int
+  paidById    String
+  paidBy      Member         @relation("PaidBy", fields: [paidById], references: [id])
+  splitMethod String         @default("equal")
+  notes       String?
+  voided      Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  participants ExpenseParticipant[]
+  lines       ExpenseLine[]
+}
+
+model ExpenseLine {
+  id          String  @id @default(cuid())
+  expenseId   String
+  expense     Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  name        String
+  amountPaise Int?
+}
+
+model ExpenseParticipant {
+  id         String  @id @default(cuid())
+  expenseId  String
+  expense    Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  memberId   String
+  member     Member  @relation(fields: [memberId], references: [id])
+  sharePaise Int
+
+  @@unique([expenseId, memberId])
+}
+
+model Settlement {
+  id          String    @id @default(cuid())
+  fromId      String
+  from        Member    @relation("FromMember", fields: [fromId], references: [id])
+  toId        String
+  to          Member    @relation("ToMember", fields: [toId], references: [id])
+  amountPaise Int
+  status      String    @default("claimed")
+  note        String?
+  claimedAt   DateTime  @default(now())
+  decidedAt   DateTime?
+}
+
+model ShoppingItem {
+  id            String    @id @default(cuid())
+  name          String
+  status        String    @default("needed")
+  addedById     String
+  addedBy       Member    @relation("AddedBy", fields: [addedById], references: [id])
+  purchasedById String?
+  purchasedBy   Member?   @relation("PurchasedBy", fields: [purchasedById], references: [id])
+  amountPaise   Int?
+  expenseId     String?
+  createdAt     DateTime  @default(now())
+  purchasedAt   DateTime?
+}
+
+model InventoryItem {
+  id          String   @id @default(cuid())
+  name        String
+  quantity    String?
+  status      String   @default("ok")
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+  updatedBy   Member?  @relation(fields: [updatedById], references: [id])
+}
+
+model KeyItem {
+  id              String          @id @default(cuid())
+  label           String
+  status          String          @default("active")
+  originalOwnerId String?
+  originalOwner   Member?         @relation("OriginalOwner", fields: [originalOwnerId], references: [id])
+  notes           String?
+  assignments     KeyAssignment[]
+}
+
+model KeyAssignment {
+  id         String    @id @default(cuid())
+  keyId      String
+  key        KeyItem   @relation(fields: [keyId], references: [id], onDelete: Cascade)
+  holderId   String
+  holder     Member    @relation("Holder", fields: [holderId], references: [id])
+  assignedAt DateTime  @default(now())
+  releasedAt DateTime?
+  reason     String    @default("original")
+}
+
+model Task {
+  id              String           @id @default(cuid())
+  title           String
+  kind            String
+  cadence         String           @default("weekly")
+  rotationEnabled Boolean          @default(true)
+  active          Boolean          @default(true)
+  sortOrder       Int              @default(0)
+  assignments     TaskAssignment[]
+}
+
+model TaskAssignment {
+  id            String    @id @default(cuid())
+  taskId        String
+  task          Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  memberId      String
+  member        Member    @relation("Assignee", fields: [memberId], references: [id])
+  periodStart   DateTime
+  periodEnd     DateTime
+  status        String    @default("pending")
+  completedById String?
+  completedBy   Member?   @relation("CompletedBy", fields: [completedById], references: [id])
+  completedAt   DateTime?
+}
+
+model MaintenanceIssue {
+  id           String    @id @default(cuid())
+  title        String
+  description  String?
+  status       String    @default("open")
+  reportedById String
+  reportedBy   Member    @relation("Reporter", fields: [reportedById], references: [id])
+  assignedToId String?
+  assignedTo   Member?   @relation("Assignee", fields: [assignedToId], references: [id])
+  costPaise    Int?
+  expenseId    String?
+  createdAt    DateTime  @default(now())
+  resolvedAt   DateTime?
+}
+
+model Device {
+  id        String   @id @default(cuid())
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id])
+  label     String
+  mac       String?
+  createdAt DateTime @default(now())
+}
+
+model AbsencePeriod {
+  id        String   @id @default(cuid())
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id])
+  startDate DateTime
+  endDate   DateTime
+  note      String?
+}
+
+model Presence {
+  memberId   String    @id
+  member     Member    @relation(fields: [memberId], references: [id])
+  state      String    @default("unknown")
+  source     String    @default("none")
+  lastSeenAt DateTime?
+  updatedAt  DateTime  @updatedAt
+}
+
+model MilkParticipation {
+  memberId     String @id
+  member       Member @relation(fields: [memberId], references: [id])
+  participates Boolean @default(true)
+}
+
+model FlatInfo {
+  id           String  @id @default("flat")
+  name         String  @default("Our Flat")
+  address      String?
+  rentPaise    Int?
+  depositPaise Int?
+  ownerName    String?
+  ownerContact String?
+  wifiSsid     String?
+  wifiPassword String?
+  notes        String?
+}
+
+model RecurringExpense {
+  id          String    @id @default(cuid())
+  title       String
+  type        String
+  amountPaise Int?
+  cadence     String    @default("monthly")
+  dayOfMonth  Int       @default(1)
+  paidById    String
+  active      Boolean   @default(true)
+  nextRunOn   DateTime?
+}
+
+/** One shared important note shown in the center of Home. */
+model ImportantNote {
+  id          String   @id @default("main")
+  body        String   @default("")
+  updatedById String?
+  updatedBy   Member?  @relation("NoteUpdater", fields: [updatedById], references: [id])
+  updatedAt   DateTime @updatedAt
+}
+
+/** Tell someone (or everyone) something — a flat reminder. */
+model Reminder {
+  id        String    @id @default(cuid())
+  fromId    String
+  from      Member    @relation("ReminderFrom", fields: [fromId], references: [id])
+  toId      String?
+  to        Member?   @relation("ReminderTo", fields: [toId], references: [id])
+  message   String
+  dueAt     DateTime?
+  status    String    @default("open")
+  createdAt DateTime  @default(now())
+  doneAt    DateTime?
+  doneById  String?
+}
+
+/** In-app notifications for each roommate. */
+model Notification {
+  id        String   @id @default(cuid())
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id])
+  title     String
+  body      String?
+  kind      String
+  href      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  refId     String?
+}

@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Shared Flat OS — Implementation Architecture (Revised)</title>
+  <style>
+    @page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; color: #111;
+      font-family: "Segoe UI", Calibri, Arial, sans-serif;
+      font-size: 10.5pt; line-height: 1.45; background: #fff;
+    }
+    .cover {
+      page-break-after: always; min-height: 240mm;
+      display: flex; flex-direction: column; justify-content: space-between;
+      padding-top: 28mm;
+    }
+    .kicker {
+      letter-spacing: 0.18em; text-transform: uppercase;
+      font-size: 9pt; color: #555; font-weight: 600;
+    }
+    h1 { font-size: 28pt; line-height: 1.15; margin: 10px 0 8px; font-weight: 700; }
+    .cover-sub { font-size: 13pt; color: #333; max-width: 155mm; }
+    .meta-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 8px 24px; margin-top: 28px; max-width: 160mm;
+    }
+    .meta-grid dt { color: #666; font-size: 9pt; }
+    .meta-grid dd { margin: 0 0 8px; font-weight: 600; }
+    .cover-note {
+      border-top: 2px solid #111; padding-top: 14px; font-size: 10pt; color: #333;
+    }
+    h2 {
+      font-size: 16pt; margin: 0 0 10px; padding-bottom: 6px;
+      border-bottom: 2px solid #111; page-break-after: avoid;
+    }
+    h3 { font-size: 12pt; margin: 16px 0 8px; page-break-after: avoid; }
+    h4 { font-size: 11pt; margin: 12px 0 6px; page-break-after: avoid; }
+    p { margin: 0 0 8px; }
+    ul, ol { margin: 0 0 10px; padding-left: 18px; }
+    li { margin-bottom: 3px; }
+    .section { page-break-before: always; }
+    .section.first { page-break-before: auto; }
+    table {
+      width: 100%; border-collapse: collapse; margin: 8px 0 14px;
+      font-size: 9.2pt;
+    }
+    thead { display: table-header-group; }
+    tr { page-break-inside: avoid; }
+    th, td { border: 1px solid #ccc; padding: 5px 7px; vertical-align: top; text-align: left; }
+    th { background: #111; color: #fff; font-weight: 600; }
+    .callout {
+      border: 1px solid #111; padding: 10px 12px; margin: 10px 0 14px;
+      page-break-inside: avoid; background: #f7f7f7;
+    }
+    .callout.warn { background: #fff6e8; border-color: #8a5a00; }
+    .callout.ok { background: #eef8f0; border-color: #1f6b34; }
+    .callout.danger { background: #fff1f0; border-color: #8a1f11; }
+    .callout strong { display: block; margin-bottom: 4px; }
+    .mono { font-family: Consolas, "Courier New", monospace; font-size: 9pt; }
+    pre {
+      background: #f4f4f4; border: 1px solid #ddd; padding: 10px 12px;
+      font-family: Consolas, "Courier New", monospace; font-size: 8.8pt;
+      white-space: pre-wrap; page-break-inside: avoid; margin: 8px 0 14px;
+    }
+    .toc ol { padding-left: 20px; }
+    .toc li { margin-bottom: 6px; }
+    .small { font-size: 9pt; color: #444; }
+    .footer-note { font-size: 8.5pt; color: #666; margin-top: 18px; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 8px 0 14px; }
+    .box { border: 1px solid #ccc; padding: 10px; page-break-inside: avoid; }
+    .box h4 { margin-top: 0; }
+    .members { margin: 8px 0 12px; }
+    .members span {
+      display: inline-block; border: 1px solid #111; padding: 3px 8px;
+      margin: 0 6px 6px 0; font-weight: 600; font-size: 9.5pt;
+    }
+    .changed { background: #fff8d6; }
+  </style>
+</head>
+<body>
+
+<section class="cover">
+  <div>
+    <div class="kicker">Revised architecture · four roommates only</div>
+    <h1>Shared Flat OS</h1>
+    <p class="cover-sub">A simple mobile-first web / PWA for one college flat. Tap who you are. Log milk, vegetables, groceries and bills. See who is home via flat Wi-Fi. Rahul must approve when someone says they paid him.</p>
+    <div class="members">
+      <span>Ankit Joshi</span>
+      <span>Jayash Ghelot</span>
+      <span>Rahul Verma</span>
+      <span>Lakshit Pareek</span>
+    </div>
+    <dl class="meta-grid">
+      <dt>Users</dt><dd>Exactly these four. No public signup.</dd>
+      <dt>Login</dt><dd>Tap your name. Phone remembers you.</dd>
+      <dt>Presence</dt><dd>Home Wi-Fi beacon — not GPS</dd>
+      <dt>Money</dt><dd>Integer paise. Settlement needs receiver approval.</dd>
+      <dt>V3</dt><dd>Removed. No AI / prediction / voice.</dd>
+      <dt>Monthly report</dt><dd>Now in V1</dd>
+      <dt>Date</dt><dd>10 August 2026</dd>
+      <dt>Version</dt><dd>1.1 — simplified after review</dd>
+    </dl>
+  </div>
+  <div class="cover-note">
+    <strong>This revision replaces v1.0.</strong>
+    No V3. Monthly report, vegetables, master list, and approve-my-payment are V1. Login is only “Who are you?”. Presence uses home Wi-Fi, not background GPS. This is not a bank — do not over-secure a four-person flat.
+  </div>
+</section>
+
+<section class="section first">
+  <h2>What changed in this revision</h2>
+  <table>
+    <thead><tr><th>Topic</th><th>Old plan</th><th>Now</th></tr></thead>
+    <tbody>
+      <tr class="changed"><td>V3</td><td>AI, prediction, voice later</td><td>Deleted. Not in the product.</td></tr>
+      <tr class="changed"><td>Monthly report</td><td>V2</td><td>V1</td></tr>
+      <tr class="changed"><td>Vegetables</td><td>Generic groceries</td><td>Own add flow + type segregation</td></tr>
+      <tr class="changed"><td>Login</td><td>Google / Apple / magic link</td><td>Tap Ankit / Jayash / Rahul / Lakshit</td></tr>
+      <tr class="changed"><td>Master list</td><td>Activity log (vague)</td><td>Date, time, who, type, what, price — filterable diary</td></tr>
+      <tr class="changed"><td>Settlement</td><td>One person marks paid</td><td>Payer claims → receiver Approves or Rejects</td></tr>
+      <tr class="changed"><td>Presence</td><td>Foreground GPS / later native app</td><td>Home Wi-Fi: who is connected to the flat router</td></tr>
+      <tr class="changed"><td>Security</td><td>Enterprise-style RLS / OAuth</td><td>Four trusted people. Correct money math. No login maze.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Contents</h2>
+  <ol class="toc">
+    <li>A. Product architecture</li>
+    <li>B. Feature map (V1 + tiny later list)</li>
+    <li>C. User flows</li>
+    <li>D. Presence — home Wi-Fi</li>
+    <li>E. Database</li>
+    <li>F. API</li>
+    <li>G. Who you are</li>
+    <li>H. UI / UX</li>
+    <li>I. Simple rules (not a bank)</li>
+    <li>J. Stack</li>
+    <li>K. Phases</li>
+  </ol>
+</section>
+
+<section class="section" id="a">
+  <h2>A. Product architecture</h2>
+  <p>One flat. Four people who already trust each other. One website they can install as a PWA. It should answer everyday questions without WhatsApp maths:</p>
+  <ul>
+    <li>Who is at the flat?</li>
+    <li>Who paid for milk / sabzi / bill?</li>
+    <li>What was added, when, by whom, at what price?</li>
+    <li>Who owes whom — and has the other person confirmed the cash/UPI?</li>
+    <li>What did we spend this month?</li>
+    <li>Whose chore / who has the key / what is broken?</li>
+  </ul>
+
+  <h3>System shape</h3>
+<pre>Four phones (browser or installed PWA)
+        │  tap your name once
+        ▼
+  Shared Flat OS website
+        │
+        ▼
+  Simple backend + database
+   ├─ members (the four names)
+   ├─ expenses + master list
+   ├─ settlements (claim → approve)
+   ├─ monthly totals (computed)
+   └─ presence (updated by home Wi-Fi beacon)
+
+Home Wi-Fi
+   └─ tiny always-on beacon (old phone / laptop / Pi / router)
+        sees which roommate phones are connected
+        → Ankit At Flat, Rahul Away, …</pre>
+
+  <h3>Rules that stay (these are correctness, not “security theater”)</h3>
+  <table>
+    <thead><tr><th>Rule</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>Money in integer paise</td><td>₹640 / 3 must not drift</td></tr>
+      <tr><td>Creating an expense ≠ paying a debt</td><td>Bill and cash are different moments</td></tr>
+      <tr><td>Settlement needs receiver approval</td><td>Stops “maine de diya tha” fights</td></tr>
+      <tr><td>Master list never lies</td><td>Every add has date, time, who, type, what, price</td></tr>
+      <tr><td>Types to segregate</td><td>Milk / Vegetables / Groceries / Food / Household / Bills / Other</td></tr>
+      <tr><td>No V3, no chat, no UPI auto-pay, no GPS tracking</td><td>Stay a flat OS, not a startup</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="section" id="b">
+  <h2>B. Feature map</h2>
+  <div class="callout danger">
+    <strong>V3 is removed</strong>
+    No consumption prediction, no AI receipt split, no voice commands, no anomaly engine, no “smart insights.” If it is not useful this month for four roommates, it is not in the product.
+  </div>
+
+  <h3>V1 — this is the product</h3>
+  <table>
+    <thead><tr><th>Area</th><th>What you get</th></tr></thead>
+    <tbody>
+      <tr><td>Who are you</td><td>Four name buttons. This phone remembers you. Switch name from a small link.</td></tr>
+      <tr><td>Home</td><td>Who is home, you owe / you receive, veg + milk peek, due alerts, today’s chore</td></tr>
+      <tr><td>Fast add</td><td>₹ amount + <strong>Type chip</strong> + title + paid by + split everyone / selected / custom → Save</td></tr>
+      <tr><td>Vegetables</td><td>Dedicated “+ Veg” : sabzi today, optional names (tomato, bhindi), price, who bought, who shares</td></tr>
+      <tr><td>Milk</td><td>Packets + price + who bought + who drinks milk (someone can opt out)</td></tr>
+      <tr><td>Segregation</td><td>Every add is typed: Milk, Vegetables, Groceries, Food, Household, Bills (rent/electricity/Wi-Fi), Other. Filter everywhere.</td></tr>
+      <tr><td>Master list</td><td>Diary of everything: date, time, who added, type, what, price. Filter by person / type / month.</td></tr>
+      <tr><td>Balances</td><td>Who owes whom after expenses minus <em>approved</em> settlements</td></tr>
+      <tr><td>Settle</td><td>“I paid Rahul ₹400” → Waiting for Rahul → Approve (clears) or Reject (still owed). Partial OK.</td></tr>
+      <tr><td>Monthly report</td><td>August total, spend by type, each person paid vs share, outstanding, approved settlements</td></tr>
+      <tr><td>Shopping + inventory</td><td>Need list vs what is in the flat (milk, veg, detergent…)</td></tr>
+      <tr><td>Recurring / rent / electricity</td><td>Wi-Fi &amp; rent templates; electricity amount typed each month</td></tr>
+      <tr><td>Keys, chores, issues, flat info</td><td>Simple ops — same as before, no extra chrome</td></tr>
+      <tr><td>Presence</td><td>Phones on home Wi-Fi = At Flat. Planned away. UNKNOWN if no signal.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Later — tiny V2 only (optional, not promised)</h3>
+  <table>
+    <thead><tr><th>Maybe later</th><th>Still never (old V3)</th></tr></thead>
+    <tbody>
+      <tr><td>Guests, auto-skip milk when someone is away, receipt photo</td><td>AI, voice, prediction, chat, UPI rails, cameras, App Store GPS app unless Wi-Fi beacon fails badly</td></tr>
+      <tr><td>Push reminders if iPhone Home Screen PWA allows it</td><td></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="section" id="c">
+  <h2>C. User flows</h2>
+
+  <h3>Open the app (login)</h3>
+<pre>Open site / PWA
+   → already chose a name on this phone?  → Home
+   → else:
+
+        WHO ARE YOU?
+
+        [ Ankit Joshi ]
+        [ Jayash Ghelot ]
+        [ Rahul Verma ]
+        [ Lakshit Pareek ]
+
+   Tap once. Done. Nothing else.</pre>
+  <p>No Google. No Apple. No email. No OTP. Optional later: one shared 4-digit flat code <em>only if</em> the link leaks outside. Default is off.</p>
+
+  <h3>Add vegetables</h3>
+<pre>+ Veg
+   ₹180
+   Tomato, bhindi   (optional extra lines)
+   Paid by: Ankit   (default: me)
+   Split: Everyone
+   [Save]
+
+→ Master list row:
+   10 Aug 2026, 6:05 PM  |  Ankit  |  Vegetables  |  Sabzi  |  ₹180</pre>
+
+  <h3>Add milk / grocery / bill</h3>
+  <p>Same sheet. Only the <strong>Type</strong> chip changes (Milk / Groceries / Food / Household / Bills / Other). Common case stays a few seconds.</p>
+
+  <h3>Master list</h3>
+<pre>MASTER LIST                          filter: [All] [Veg] [Milk] [Ankit] [Aug]
+
+10 Aug 11:20  Rahul    Milk         2 packets           ₹120
+10 Aug 18:05  Ankit    Vegetables   Tomato, bhindi      ₹180
+10 Aug 20:12  Jayash   Bills        Electricity         ₹4,380
+11 Aug 09:40  Lakshit  Groceries    Oil + detergent     ₹490</pre>
+  <p>This is the screen people open during “bhai kisne pay kiya?” arguments.</p>
+
+  <h3>Monthly report (V1)</h3>
+<pre>AUGUST 2026
+Total flat spending     ₹42,840
+
+Vegetables     ₹4,120
+Milk           ₹2,100
+Groceries      ₹5,840
+Electricity    ₹3,240
+Rent          ₹24,000
+Wi-Fi            ₹799
+Other          ₹2,741
+
+          Paid        Share       Net
+Ankit     ₹12,100     ₹10,710     +₹1,390  (should receive)
+Jayash     ₹8,200     ₹10,710     −₹2,510
+Rahul     ₹14,400     ₹10,710     +₹3,690
+Lakshit    ₹8,140     ₹10,710     −₹2,570
+
+Approved settlements this month: …
+Still waiting for approval: Ankit → Rahul ₹400</pre>
+
+  <h3>Pay a debt (claim + approve)</h3>
+<pre>Ankit:  I paid Rahul ₹400
+         note: UPI   (optional)
+         → status: WAITING FOR RAHUL
+
+Rahul sees on Home / Money:
+         Ankit says he paid you ₹400
+         [Approve]   [Reject]
+
+Approve → debt cleared, master list: “Settlement approved”
+Reject  → still owed, Ankit can try again
+
+Partial: Ankit paid ₹200 of ₹400 → after approve, ₹200 still owed.</pre>
+  <p>Only Rahul can approve a payment <em>to Rahul</em>. Ankit cannot mark it done alone. That matches real roommate fights.</p>
+</section>
+
+<section class="section" id="d">
+  <h2>D. Presence — can home Wi-Fi mean someone is home?</h2>
+
+  <div class="callout ok">
+    <strong>Yes — that is the right idea for this flat. GPS is the wrong idea.</strong>
+    If a roommate’s phone is connected to the flat Wi-Fi, they are almost certainly at home. We should use that. We should not build background GPS tracking.
+  </div>
+
+  <h3>Honest limit (do not skip this)</h3>
+  <p>The <strong>website running on the phone cannot read the Wi-Fi name</strong> (“JioFiber-5G” vs college Wi-Fi). iOS Safari, iOS PWA, Android Chrome, Android PWA — all block SSID / BSSID for privacy. So this will <em>not</em> work:</p>
+<pre>// this is impossible in a browser
+if (wifiName === "Flat-WiFi") markAtHome();</pre>
+
+  <p>Detection has to happen <strong>from inside the home network</strong>: “which known phones are currently connected to our router?”</p>
+
+  <h3>How we will do it (simple, for four people)</h3>
+  <table>
+    <thead><tr><th>Method</th><th>How</th><th>Automatic?</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Home beacon (best)</strong></td>
+        <td>A tiny always-on thing on flat Wi-Fi — old phone left charging, laptop, Raspberry Pi, or a script on the router if it allows. Every few minutes it looks at connected devices and tells the app: Ankit’s phone is here, Rahul’s is not.</td>
+        <td>Yes — nobody opens the app</td>
+      </tr>
+      <tr>
+        <td><strong>Open-app ping</strong></td>
+        <td>When someone opens the PWA, the site tries a local URL that only exists on home Wi-Fi (e.g. <span class="mono">http://192.168.0.50:8787/here</span>). If it succeeds, that person is At Flat.</td>
+        <td>Only when the app is opened</td>
+      </tr>
+      <tr>
+        <td>Planned away</td>
+        <td>“Rahul home 20 Aug–10 Sep” still shows away even if the phone is off.</td>
+        <td>Manual calendar</td>
+      </tr>
+      <tr>
+        <td>Fallback tap</td>
+        <td>Small “I’m home / I’m out” only if beacon is down. Not the daily ritual.</td>
+        <td>Manual</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>One-time phone setup (needed so Ankit ≠ “some iPhone”)</h3>
+  <p>Modern phones hide their real identity on Wi-Fi (Private Wi-Fi Address / randomized MAC). For <em>this home network only</em>, each roommate should:</p>
+  <ul>
+    <li><strong>iPhone:</strong> Settings → Wi-Fi → (i) next to flat Wi-Fi → <strong>Private Wi-Fi Address → Off</strong> (or Fixed, then we save that MAC once).</li>
+    <li><strong>Android:</strong> Wi-Fi → flat network → Privacy → <strong>Use device MAC</strong>.</li>
+    <li>Then in People → My devices → “This is Ankit’s phone” (beacon records the MAC / name once).</li>
+  </ul>
+  <p>After that the beacon can tell Ankit vs Rahul. Turning this off only for home Wi-Fi is normal and safe inside your own flat.</p>
+
+  <h3>What can go wrong (we show UNKNOWN, we do not guess)</h3>
+  <table>
+    <thead><tr><th>Situation</th><th>App shows</th></tr></thead>
+    <tbody>
+      <tr><td>Phone on flat Wi-Fi</td><td>At Flat</td></tr>
+      <tr><td>Phone on mobile data / college Wi-Fi</td><td>Away (or Unknown if we never saw them leave)</td></tr>
+      <tr><td>Wi-Fi off / battery saver killed Wi-Fi / phone dead</td><td>Unknown — “signal unavailable”, not fake Away</td></tr>
+      <tr><td>Phone left at flat, person went to college</td><td>At Flat (same lie GPS would tell). Accept it, or they tap I’m out.</td></tr>
+      <tr><td>Guest uses Wi-Fi</td><td>Not a roommate unless we map that device</td></tr>
+      <tr><td>Wi-Fi reaches the building gate</td><td>May show At Flat while just outside — good enough for a flat</td></tr>
+      <tr><td>Beacon unplugged</td><td>Unknown for everyone until it is back; open-app ping still works</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout warn">
+    <strong>We will not do</strong>
+    Background GPS, geofences in the PWA, storing location trails, or claiming the browser can see your SSID. Wi-Fi-from-the-router is the honest automatic path for four people in one home.
+  </div>
+</section>
+
+<section class="section" id="e">
+  <h2>E. Database (simple tables, correct money)</h2>
+  <table>
+    <thead><tr><th>Table</th><th>What it stores</th></tr></thead>
+    <tbody>
+      <tr><td>members</td><td>The four people: id, name. This <em>is</em> login.</td></tr>
+      <tr><td>expenses</td><td>type, title, amount_paise, paid_by, created_at, notes, split method</td></tr>
+      <tr><td>expense_participants</td><td>Each person’s share_paise</td></tr>
+      <tr><td>expense_lines</td><td>Optional veg/grocery lines: “Tomato ₹40”, “Bhindi ₹60”</td></tr>
+      <tr><td>settlements</td><td>from_member, to_member, amount_paise, status claimed | approved | rejected, claimed_at, decided_at, note</td></tr>
+      <tr><td>master_list</td><td>A <em>view</em> over expenses + settlements: when, who, type, what, price, status</td></tr>
+      <tr><td>shopping_items / inventory</td><td>Need vs have</td></tr>
+      <tr><td>milk_participation</td><td>Who drinks milk</td></tr>
+      <tr><td>devices</td><td>member_id + home Wi-Fi MAC / label for the beacon</td></tr>
+      <tr><td>current_presence</td><td>at_flat / away / unknown + last_seen_on_wifi. No GPS.</td></tr>
+      <tr><td>absence_periods</td><td>I’m home 20 Aug–10 Sep</td></tr>
+      <tr><td>keys / chores / issues / flat_info</td><td>Simple ops</td></tr>
+      <tr><td>recurring + rent_cycles</td><td>Wi-Fi / rent / electricity</td></tr>
+    </tbody>
+  </table>
+  <p><strong>Type chips:</strong> <span class="mono">milk | vegetables | groceries | food | household | rent | electricity | wifi | other</span>. Monthly report groups by these. Bills on the home UI can roll rent + electricity + wifi together.</p>
+  <p><strong>Balance:</strong> paid − share + approved settlements received − approved settlements sent. Claimed-but-not-approved does <em>not</em> change the balance.</p>
+</section>
+
+<section class="section" id="f">
+  <h2>F. API — few actions</h2>
+  <table>
+    <thead><tr><th>Action</th><th>Does</th></tr></thead>
+    <tbody>
+      <tr><td>select_member</td><td>This phone is Ankit (cookie + local remember)</td></tr>
+      <tr><td>create_expense</td><td>Add veg / milk / anything → appears on master list</td></tr>
+      <tr><td>list_master</td><td>Filter by date, person, type</td></tr>
+      <tr><td>get_balances</td><td>Who owes whom (approved settlements only)</td></tr>
+      <tr><td>monthly_report</td><td>Month totals by type + per person</td></tr>
+      <tr><td>claim_settlement</td><td>I paid Rahul ₹X → waiting</td></tr>
+      <tr><td>approve_settlement / reject_settlement</td><td>Only the receiver can decide</td></tr>
+      <tr><td>ingest_wifi_presence</td><td>Beacon or app ping → At Flat</td></tr>
+      <tr><td>register_device</td><td>Save this phone’s home Wi-Fi identity</td></tr>
+    </tbody>
+  </table>
+  <p>Share math still runs on the server so four phones cannot disagree on ₹1000 / 3. That is arithmetic, not “security product.”</p>
+</section>
+
+<section class="section" id="g">
+  <h2>G. Who you are — not a login product</h2>
+  <div class="two-col">
+    <div class="box">
+      <h4>Screen</h4>
+      <p><strong>Who are you?</strong></p>
+      <p>Ankit Joshi<br/>Jayash Ghelot<br/>Rahul Verma<br/>Lakshit Pareek</p>
+      <p class="small">Tap once. This phone stays you until you switch.</p>
+    </div>
+    <div class="box">
+      <h4>What we dropped</h4>
+      <ul>
+        <li>Google Sign-In</li>
+        <li>Apple Sign-In</li>
+        <li>Email / magic link</li>
+        <li>Invite tokens / OTP</li>
+        <li>Passwords per person</li>
+      </ul>
+    </div>
+  </div>
+  <div class="callout warn">
+    <strong>Optional only — default off</strong>
+    If the website URL ever leaks outside the four phones, add one shared 4-digit flat code before the name list. You said keep it easy, so we will not build this unless you ask.
+  </div>
+</section>
+
+<section class="section" id="h">
+  <h2>H. UI / UX</h2>
+  <p>Mobile-first. Bottom nav: <strong>Home · Money · Flat · People</strong>.</p>
+  <table>
+    <thead><tr><th>Nav</th><th>Inside</th></tr></thead>
+    <tbody>
+      <tr><td>Home</td><td>Who is home, balances, veg/milk peek, pending “Rahul please approve”, due alerts, today’s chore</td></tr>
+      <tr><td>Money</td><td>+ Add, Master list, Balances, Settlements (waiting / approved), Monthly report, Recurring / Rent</td></tr>
+      <tr><td>Flat</td><td>Shopping, Inventory, Milk, Vegetables, Keys, Chores, Issues, Info</td></tr>
+      <tr><td>People</td><td>Four faces, presence, balance, key, chores, my devices (Wi-Fi)</td></tr>
+    </tbody>
+  </table>
+  <p><strong>+ Add</strong> is one sheet with Type chips on top. Vegetables and Milk can also have a one-tap shortcut from Home / Flat. Master list is the diary. Monthly report is a real V1 screen, not a future slide.</p>
+</section>
+
+<section class="section" id="i">
+  <h2>I. Simple rules — not a bank</h2>
+  <p>Only these four people will use it. We will not build OAuth, App Review, rate-limit dashboards, or invite RBAC. We still keep money honest.</p>
+  <table>
+    <thead><tr><th>Do</th><th>Don’t</th></tr></thead>
+    <tbody>
+      <tr><td>Tap name + remember this phone</td><td>Google / Apple / magic link</td></tr>
+      <tr><td>Rahul must approve money he received</td><td>Auto-clear debt because Ankit typed “paid”</td></tr>
+      <tr><td>Keep the link on your four phones</td><td>Enterprise roles and audit SSO</td></tr>
+      <tr><td>Integer paise; void with a note if someone typed wrong</td><td>Silent delete</td></tr>
+      <tr><td>Home Wi-Fi presence</td><td>Store GPS trails “for security”</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="section" id="j">
+  <h2>J. Stack</h2>
+  <table>
+    <thead><tr><th>Layer</th><th>Choice</th></tr></thead>
+    <tbody>
+      <tr><td>App</td><td>Next.js + TypeScript, mobile-first PWA</td></tr>
+      <tr><td>Database</td><td>Postgres (Supabase as hosted Postgres is fine)</td></tr>
+      <tr><td>Auth</td><td>None of the usual providers. Name picker + simple session cookie.</td></tr>
+      <tr><td>Realtime</td><td>So Rahul sees Ankit’s veg add and the “please approve” card without refresh</td></tr>
+      <tr><td>Home beacon</td><td>Tiny Python or Node script on any always-on device on flat Wi-Fi, posting “device seen”</td></tr>
+      <tr><td>Hosting</td><td>Vercel (site) + Supabase/Postgres (data)</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="section" id="k">
+  <h2>K. Development phases</h2>
+  <table>
+    <thead><tr><th>Phase</th><th>Build</th><th>Done when</th></tr></thead>
+    <tbody>
+      <tr><td>0</td><td>This revised plan approved</td><td>No V3, tap-name, Wi-Fi presence, approval settlements, veg + master list + monthly report in V1</td></tr>
+      <tr><td>1</td><td>App shell + four name buttons + remember phone + seed four members</td><td>Each person opens and is themselves</td></tr>
+      <tr><td>2</td><td>Add with types (veg/milk/…), master list, balances, claim/approve settlement</td><td>Ankit’s ₹180 sabzi shows for everyone; Rahul must approve a payment</td></tr>
+      <tr><td>3</td><td>Monthly report + recurring / rent / electricity</td><td>August page answers “kitna kharch hua”</td></tr>
+      <tr><td>4</td><td>Home dashboard + shopping, inventory, keys, chores, issues</td><td>Daily ops without WhatsApp</td></tr>
+      <tr><td>5</td><td>Home Wi-Fi beacon + register phone + presence on Home/People</td><td>2/4 home when two phones are on flat Wi-Fi</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Ready to code when you say</h3>
+  <ol>
+    <li>Tap-name login is enough (no Google).</li>
+    <li>V3 stays deleted; monthly report + veg + master list + approve-settlement are V1.</li>
+    <li>Presence = home Wi-Fi beacon, not GPS.</li>
+    <li>Keep it simple for four people.</li>
+  </ol>
+  <p class="footer-note">Shared Flat OS — Architecture v1.1 (revised) · 10 August 2026 · Four members only · Replaces v1.0.</p>
+</section>
+
+</body>
+</html>
