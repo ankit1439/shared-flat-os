@@ -674,7 +674,7 @@ function BalancesView({ data }: { data: Balances }) {
 
 function SettleView({ meId, onDone }: { meId: string; onDone: () => void }) {
   const others = useMemo(() => MEMBERS.filter((m) => m.id !== meId), [meId]);
-  const [toId, setToId] = useState(others[0]?.id ?? "");
+  const [toId, setToId] = useState<string>(others[0]?.id ?? "");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [msg, setMsg] = useState("");
