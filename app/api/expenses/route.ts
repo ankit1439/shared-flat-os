@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getCurrentMember } from "@/lib/session";
-import { MEMBER_IDS, memberById } from "@/lib/members";
-import { EXPENSE_TYPE_IDS } from "@/lib/types";
+import { MEMBER_IDS, memberById, shortName } from "@/lib/members";
+import { EXPENSE_TYPE_IDS, typeLabel } from "@/lib/types";
 import { rupeesToPaise, splitEqual } from "@/lib/money";
+import { notifyEveryoneExcept } from "@/lib/notify";
 
 const bodySchema = z.object({
   type: z.enum(EXPENSE_TYPE_IDS as [string, ...string[]]),
@@ -120,6 +121,14 @@ export async function POST(request: Request) {
     },
     include: { participants: true, lines: true, paidBy: true },
   });
+
+  await notifyEveryoneExcept(who.id, {
+    title: `${shortName(data.paidById)} paid ₹${(amountPaise / 100).toFixed(amountPaise % 100 === 0 ? 0 : 2)}`,
+    body: `${typeLabel(data.type)} · ${data.title.trim()}`,
+    kind: "expense",
+    href: "/money",
+    refId: expense.id,
+  }).catch(() => null);
 
   return NextResponse.json({ expense }, { status: 201 });
 }

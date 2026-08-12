@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { Home, Wallet, Building2, Users, Bell } from "lucide-react";
 import { ClientOnly } from "@/components/ClientOnly";
+import { PushEnableButton } from "@/components/PushEnableButton";
 
 const NAV = [
   { href: "/home", label: "Home", icon: Home },
@@ -69,7 +70,8 @@ function HeaderActions() {
   }
 
   return (
-    <div className="relative flex items-center gap-3">
+    <div className="relative flex items-center gap-2">
+      <PushEnableButton />
       <button
         type="button"
         onClick={() => {

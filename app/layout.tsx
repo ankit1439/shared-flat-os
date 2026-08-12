@@ -5,6 +5,12 @@ export const metadata: Metadata = {
   title: "Shared Flat OS",
   description: "Website for Ankit, Jayash, Rahul and Lakshit to run the flat.",
   applicationName: "Flat OS",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Flat OS",
+    statusBarStyle: "default",
+  },
 };
 
 export const viewport: Viewport = {

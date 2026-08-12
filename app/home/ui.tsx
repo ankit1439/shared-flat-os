@@ -57,6 +57,8 @@ export function HomeClient() {
   const [editingNote, setEditingNote] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
   const [savingNote, setSavingNote] = useState(false);
+  const [locationBusy, setLocationBusy] = useState(false);
+  const [locationMsg, setLocationMsg] = useState("");
   const editingNoteRef = useRef(false);
 
   async function load() {
@@ -92,6 +94,43 @@ export function HomeClient() {
       body: JSON.stringify({ state, source: "manual" }),
     });
     await load();
+  }
+
+  async function checkInWithGps() {
+    setLocationMsg("");
+    if (!navigator.geolocation) {
+      setLocationMsg("This phone doesn’t support GPS.");
+      return;
+    }
+    setLocationBusy(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const res = await fetch("/api/presence", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            source: "gps",
+          }),
+        });
+        const json = await res.json().catch(() => ({}));
+        setLocationBusy(false);
+        if (!res.ok) {
+          setLocationMsg(json.error || "Could not check in.");
+          return;
+        }
+        const where = json.state === "at_flat" ? "You’re at the flat" : "You’re away from the flat";
+        const dist = json.distanceM != null ? ` · ${json.distanceM}m away` : "";
+        setLocationMsg(`${where}${dist}`);
+        await load();
+      },
+      (err) => {
+        setLocationBusy(false);
+        setLocationMsg(err.message || "Location permission denied.");
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
+    );
   }
 
   async function saveNote() {
@@ -302,6 +341,18 @@ export function HomeClient() {
             I’m out
           </button>
         </div>
+        <button
+          type="button"
+          disabled={locationBusy}
+          onClick={checkInWithGps}
+          className="mt-2 w-full rounded-xl bg-ink py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+        >
+          {locationBusy ? "Getting GPS…" : "Check in with location"}
+        </button>
+        {locationMsg ? <p className="mt-2 text-xs text-mute">{locationMsg}</p> : null}
+        <p className="mt-1 text-[11px] text-mute">
+          GPS compares you to the flat pin set in Flat → Flat info. Roommates get a notification.
+        </p>
       </Card>
 
       <div className="grid grid-cols-2 gap-3">

@@ -1,0 +1,17 @@
+{
+  "name": "Shared Flat OS",
+  "short_name": "Flat OS",
+  "description": "Money, presence, shopping and chores for the flat.",
+  "start_url": "/home",
+  "display": "standalone",
+  "background_color": "#f7f3ee",
+  "theme_color": "#14110f",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

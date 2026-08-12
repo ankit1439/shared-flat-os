@@ -3,7 +3,15 @@ import type { NextRequest } from "next/server";
 import { SESSION_COOKIE } from "@/lib/constants";
 import { memberById } from "@/lib/members";
 
-const PUBLIC_PREFIXES = ["/who", "/api/session", "/_next", "/favicon", "/icon"];
+const PUBLIC_PREFIXES = [
+  "/who",
+  "/api/session",
+  "/_next",
+  "/favicon",
+  "/icon",
+  "/sw.js",
+  "/manifest.webmanifest",
+];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
