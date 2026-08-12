@@ -4,6 +4,7 @@ import { getCurrentMember } from "@/lib/session";
 import { shortName, MEMBERS } from "@/lib/members";
 import { typeLabel, EXPENSE_TYPES } from "@/lib/types";
 import { formatINR } from "@/lib/money";
+import { flatDayKey, formatFlatDate, formatFlatTime } from "@/lib/time";
 
 export async function GET(request: Request) {
   const who = await getCurrentMember();
@@ -100,18 +101,14 @@ export async function GET(request: Request) {
       id: e.id,
       kind: "expense",
       at: at.toISOString(),
-      dayKey: at.toISOString().slice(0, 10),
-      date: at.toLocaleDateString("en-IN", {
+      dayKey: flatDayKey(at),
+      date: formatFlatDate(at, {
         day: "2-digit",
         month: "short",
         year: "numeric",
       }),
-      weekday: at.toLocaleDateString("en-IN", { weekday: "short" }),
-      time: at.toLocaleTimeString("en-IN", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      }),
+      weekday: formatFlatDate(at, { weekday: "short" }),
+      time: formatFlatTime(at),
       type: e.type,
       typeLabel: typeLabel(e.type),
       title: e.title,
@@ -136,18 +133,14 @@ export async function GET(request: Request) {
       id: s.id,
       kind: "settlement",
       at: at.toISOString(),
-      dayKey: at.toISOString().slice(0, 10),
-      date: at.toLocaleDateString("en-IN", {
+      dayKey: flatDayKey(at),
+      date: formatFlatDate(at, {
         day: "2-digit",
         month: "short",
         year: "numeric",
       }),
-      weekday: at.toLocaleDateString("en-IN", { weekday: "short" }),
-      time: at.toLocaleTimeString("en-IN", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      }),
+      weekday: formatFlatDate(at, { weekday: "short" }),
+      time: formatFlatTime(at),
       type: "settlement",
       typeLabel: "Settlement",
       title: `${shortName(s.fromId)} → ${shortName(s.toId)}`,

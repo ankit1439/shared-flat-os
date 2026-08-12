@@ -319,6 +319,7 @@ export function ReportClient() {
                       <p className="mt-0.5 text-[11px] text-mute">
                         {e.typeLabel} · {e.paidByName} ·{" "}
                         {new Date(e.createdAt).toLocaleDateString("en-IN", {
+                          timeZone: "Asia/Kolkata",
                           day: "2-digit",
                           month: "short",
                         })}

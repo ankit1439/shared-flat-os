@@ -127,10 +127,12 @@ function HeaderActions() {
                   {n.body ? <p className="mt-0.5 line-clamp-2 text-xs text-mute">{n.body}</p> : null}
                   <p className="mt-1 text-[10px] text-mute">
                     {new Date(n.createdAt).toLocaleString("en-IN", {
+                      timeZone: "Asia/Kolkata",
                       day: "2-digit",
                       month: "short",
                       hour: "2-digit",
                       minute: "2-digit",
+                      hour12: true,
                     })}
                     {!n.read ? " · New" : ""}
                   </p>

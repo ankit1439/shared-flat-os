@@ -4,6 +4,7 @@ import { getCurrentMember } from "@/lib/session";
 import { MEMBERS, shortName } from "@/lib/members";
 import { monthRange, monthKey } from "@/lib/money";
 import { EXPENSE_TYPES, typeLabel } from "@/lib/types";
+import { flatDayKey, formatFlatDate } from "@/lib/time";
 
 export async function GET(request: Request) {
   const who = await getCurrentMember();
@@ -106,9 +107,8 @@ export async function GET(request: Request) {
   // Day-by-day spend for sparkline / list
   const byDayMap = new Map<string, { dayKey: string; label: string; amountPaise: number; count: number }>();
   for (const e of expenses) {
-    const d = new Date(e.createdAt);
-    const dayKey = d.toISOString().slice(0, 10);
-    const label = d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
+    const dayKey = flatDayKey(e.createdAt);
+    const label = formatFlatDate(e.createdAt, { day: "2-digit", month: "short" });
     const existing = byDayMap.get(dayKey);
     if (existing) {
       existing.amountPaise += e.amountPaise;
