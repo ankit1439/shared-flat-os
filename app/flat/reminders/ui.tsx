@@ -10,6 +10,7 @@ type Reminder = {
   status: string;
   dueAt: string | null;
   createdAt: string;
+  expiresAt?: string;
   fromId: string;
   fromName: string;
   toId: string | null;
@@ -57,7 +58,8 @@ export function RemindersClient({ meId }: { meId: string }) {
     await load();
   }
 
-  async function act(id: string, action: "done" | "reopen" | "cancel") {
+  async function act(id: string, action: "done" | "reopen" | "cancel" | "delete") {
+    if (action === "delete" && !confirm("Delete this reminder permanently?")) return;
     await fetch("/api/reminders", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -69,11 +71,19 @@ export function RemindersClient({ meId }: { meId: string }) {
   const open = rows.filter((r) => r.status === "open");
   const closed = rows.filter((r) => r.status !== "open");
 
+  function canDelete(r: Reminder) {
+    if (r.fromId === meId) return true;
+    if (r.toId === meId) return true;
+    return false;
+  }
+
   return (
     <div className="space-y-4">
       <div>
         <h1 className="text-xl font-semibold">Reminders</h1>
-        <p className="text-sm text-mute">Tell someone something — they get a notification.</p>
+        <p className="text-sm text-mute">
+          Tell someone something. Open reminders expire automatically after 12 hours.
+        </p>
       </div>
 
       <Card className="space-y-3">
@@ -125,8 +135,16 @@ export function RemindersClient({ meId }: { meId: string }) {
                       minute: "2-digit",
                     })}`
                   : ""}
+                {r.expiresAt
+                  ? ` · expires ${new Date(r.expiresAt).toLocaleString("en-IN", {
+                      day: "2-digit",
+                      month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}`
+                  : " · expires in 12h"}
               </p>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => act(r.id, "done")}
@@ -143,6 +161,15 @@ export function RemindersClient({ meId }: { meId: string }) {
                     Cancel
                   </button>
                 )}
+                {canDelete(r) ? (
+                  <button
+                    type="button"
+                    onClick={() => act(r.id, "delete")}
+                    className="rounded-lg border border-line px-3 py-1.5 text-sm text-owe"
+                  >
+                    Delete
+                  </button>
+                ) : null}
               </div>
             </Card>
           ))
@@ -158,11 +185,26 @@ export function RemindersClient({ meId }: { meId: string }) {
               <p className="text-xs">
                 {r.fromName} → {r.toName} · {r.status}
               </p>
-              {r.status === "done" ? (
-                <button type="button" onClick={() => act(r.id, "reopen")} className="mt-1 text-xs underline">
-                  Reopen
-                </button>
-              ) : null}
+              <div className="mt-1 flex gap-3">
+                {r.status === "done" ? (
+                  <button
+                    type="button"
+                    onClick={() => act(r.id, "reopen")}
+                    className="text-xs underline"
+                  >
+                    Reopen
+                  </button>
+                ) : null}
+                {canDelete(r) ? (
+                  <button
+                    type="button"
+                    onClick={() => act(r.id, "delete")}
+                    className="text-xs text-owe underline"
+                  >
+                    Delete
+                  </button>
+                ) : null}
+              </div>
             </div>
           ))}
         </div>

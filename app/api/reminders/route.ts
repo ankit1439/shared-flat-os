@@ -3,10 +3,13 @@ import { prisma } from "@/lib/db";
 import { getCurrentMember } from "@/lib/session";
 import { memberById, shortName } from "@/lib/members";
 import { notifyMembers, notifyEveryoneExcept } from "@/lib/notify";
+import { expireOldReminders, reminderExpiresAt } from "@/lib/reminders";
 
 export async function GET() {
   const who = await getCurrentMember();
   if (!who) return NextResponse.json({ error: "Pick who you are" }, { status: 401 });
+
+  await expireOldReminders();
 
   const reminders = await prisma.reminder.findMany({
     include: { from: true, to: true },
@@ -21,6 +24,7 @@ export async function GET() {
       status: r.status,
       dueAt: r.dueAt,
       createdAt: r.createdAt,
+      expiresAt: reminderExpiresAt(r.createdAt),
       fromId: r.fromId,
       fromName: shortName(r.fromId),
       toId: r.toId,
@@ -82,7 +86,10 @@ export async function POST(request: Request) {
     });
   }
 
-  return NextResponse.json({ reminder }, { status: 201 });
+  return NextResponse.json(
+    { reminder: { ...reminder, expiresAt: reminderExpiresAt(reminder.createdAt) } },
+    { status: 201 },
+  );
 }
 
 export async function PATCH(request: Request) {
@@ -116,7 +123,7 @@ export async function PATCH(request: Request) {
   if (action === "reopen") {
     const updated = await prisma.reminder.update({
       where: { id },
-      data: { status: "open", doneAt: null, doneById: null },
+      data: { status: "open", doneAt: null, doneById: null, createdAt: new Date() },
     });
     return NextResponse.json({ reminder: updated });
   }
@@ -130,6 +137,18 @@ export async function PATCH(request: Request) {
       data: { status: "cancelled", doneAt: new Date(), doneById: who.id },
     });
     return NextResponse.json({ reminder: updated });
+  }
+
+  if (action === "delete") {
+    if (reminder.fromId !== who.id && reminder.toId !== who.id) {
+      return NextResponse.json({ error: "Only sender or receiver can delete." }, { status: 403 });
+    }
+    // For "everyone" reminders, only the sender can delete.
+    if (reminder.toId === null && reminder.fromId !== who.id) {
+      return NextResponse.json({ error: "Only the sender can delete this." }, { status: 403 });
+    }
+    await prisma.reminder.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });

@@ -10,6 +10,7 @@ datasource db {
 model Member {
   id        String   @id
   name      String
+  pinHash   String?
   createdAt DateTime @default(now())
 
   expensesPaid       Expense[]            @relation("PaidBy")

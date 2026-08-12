@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card, Label, inputClass } from "@/components/ui";
 import { Rupee } from "@/components/Rupee";
 import { typeLabel } from "@/lib/types";
@@ -57,13 +57,14 @@ export function HomeClient() {
   const [editingNote, setEditingNote] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
   const [savingNote, setSavingNote] = useState(false);
+  const editingNoteRef = useRef(false);
 
   async function load() {
     const res = await fetch("/api/home", { cache: "no-store" });
     if (res.ok) {
       const json = await res.json();
       setData(json);
-      if (!editingNote) setNoteDraft(json.importantNote?.body ?? "");
+      if (!editingNoteRef.current) setNoteDraft(json.importantNote?.body ?? "");
     }
   }
 
@@ -95,13 +96,26 @@ export function HomeClient() {
 
   async function saveNote() {
     setSavingNote(true);
-    await fetch("/api/note", {
+    const res = await fetch("/api/note", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ body: noteDraft }),
     });
     setSavingNote(false);
+    if (!res.ok) return;
+    editingNoteRef.current = false;
     setEditingNote(false);
+    await load();
+  }
+
+  async function deleteNote() {
+    if (!confirm("Delete the important note for everyone?")) return;
+    setSavingNote(true);
+    await fetch("/api/note", { method: "DELETE" });
+    setSavingNote(false);
+    editingNoteRef.current = false;
+    setEditingNote(false);
+    setNoteDraft("");
     await load();
   }
 
@@ -110,6 +124,16 @@ export function HomeClient() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, action: "done" }),
+    });
+    await load();
+  }
+
+  async function deleteReminder(id: string) {
+    if (!confirm("Delete this reminder?")) return;
+    await fetch("/api/reminders", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, action: "delete" }),
     });
     await load();
   }
@@ -124,7 +148,6 @@ export function HomeClient() {
 
   return (
     <div className="space-y-4">
-      {/* Important note — center front */}
       <section className="rounded-3xl border-2 border-ink bg-card px-4 py-5 text-center shadow-card">
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-mute">
           Important note
@@ -137,7 +160,7 @@ export function HomeClient() {
               onChange={(e) => setNoteDraft(e.target.value)}
               placeholder="Owner visiting tomorrow… Wi-Fi password changed… Gas coming at 5…"
             />
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 disabled={savingNote}
@@ -149,6 +172,7 @@ export function HomeClient() {
               <button
                 type="button"
                 onClick={() => {
+                  editingNoteRef.current = false;
                   setEditingNote(false);
                   setNoteDraft(note.body);
                 }}
@@ -157,6 +181,16 @@ export function HomeClient() {
                 Cancel
               </button>
             </div>
+            {note.body ? (
+              <button
+                type="button"
+                disabled={savingNote}
+                onClick={deleteNote}
+                className="w-full text-xs font-semibold text-owe underline"
+              >
+                Delete note
+              </button>
+            ) : null}
           </div>
         ) : (
           <>
@@ -172,16 +206,28 @@ export function HomeClient() {
                 ? `Updated by ${note.updatedByName}`
                 : "Visible to all four"}
             </p>
-            <button
-              type="button"
-              onClick={() => {
-                setNoteDraft(note.body);
-                setEditingNote(true);
-              }}
-              className="mt-3 rounded-full border border-line px-4 py-1.5 text-xs font-semibold"
-            >
-              {note.body ? "Edit note" : "Add important note"}
-            </button>
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setNoteDraft(note.body);
+                  editingNoteRef.current = true;
+                  setEditingNote(true);
+                }}
+                className="rounded-full border border-line px-4 py-1.5 text-xs font-semibold"
+              >
+                {note.body ? "Edit note" : "Add important note"}
+              </button>
+              {note.body ? (
+                <button
+                  type="button"
+                  onClick={deleteNote}
+                  className="rounded-full border border-line px-4 py-1.5 text-xs font-semibold text-owe"
+                >
+                  Delete
+                </button>
+              ) : null}
+            </div>
           </>
         )}
       </section>
@@ -193,6 +239,7 @@ export function HomeClient() {
             + Tell someone
           </Link>
         </div>
+        <p className="mb-2 text-[11px] text-mute">Open reminders auto-expire after 12 hours.</p>
         {forMe.length === 0 ? (
           <p className="text-sm text-mute">No open reminders for you.</p>
         ) : (
@@ -203,13 +250,22 @@ export function HomeClient() {
                 <p className="mt-0.5 text-xs text-mute">
                   From {r.fromName} · to {r.toName}
                 </p>
-                <button
-                  type="button"
-                  onClick={() => doneReminder(r.id)}
-                  className="mt-2 text-xs font-semibold underline"
-                >
-                  Mark done
-                </button>
+                <div className="mt-2 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => doneReminder(r.id)}
+                    className="text-xs font-semibold underline"
+                  >
+                    Mark done
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteReminder(r.id)}
+                    className="text-xs font-semibold text-owe underline"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             ))}
           </div>

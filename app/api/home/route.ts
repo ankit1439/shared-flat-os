@@ -3,10 +3,13 @@ import { prisma } from "@/lib/db";
 import { getCurrentMember } from "@/lib/session";
 import { MEMBERS, shortName } from "@/lib/members";
 import { computeNets, myOweReceive } from "@/lib/balances";
+import { expireOldReminders } from "@/lib/reminders";
 
 export async function GET() {
   const who = await getCurrentMember();
   if (!who) return NextResponse.json({ error: "Pick who you are" }, { status: 401 });
+
+  await expireOldReminders();
 
   const [
     nets,

@@ -63,6 +63,11 @@ function HeaderActions() {
     await loadNotifs();
   }
 
+  async function switchUser() {
+    await fetch("/api/session", { method: "DELETE" });
+    window.location.href = "/who";
+  }
+
   return (
     <div className="relative flex items-center gap-3">
       <button
@@ -82,9 +87,13 @@ function HeaderActions() {
           </span>
         ) : null}
       </button>
-      <Link href="/who" className="text-xs text-mute underline-offset-2 hover:underline">
+      <button
+        type="button"
+        onClick={switchUser}
+        className="text-xs text-mute underline-offset-2 hover:underline"
+      >
         Switch
-      </Link>
+      </button>
 
       {open ? (
         <div className="absolute right-0 top-11 z-30 w-[min(100vw-2rem,20rem)] max-h-72 overflow-y-auto rounded-2xl border border-line bg-card p-2 shadow-card">

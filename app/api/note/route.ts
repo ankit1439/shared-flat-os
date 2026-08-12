@@ -12,7 +12,6 @@ export async function GET() {
     where: { id: "main" },
     update: {},
     create: { id: "main", body: "" },
-    include: { updatedBy: true },
   });
 
   return NextResponse.json({
@@ -45,11 +44,47 @@ export async function PATCH(request: Request) {
       href: "/home",
       refId: note.id,
     });
+  } else {
+    await notifyEveryoneExcept(who.id, {
+      title: "Important note cleared",
+      body: `${who.short} deleted the pinned note.`,
+      kind: "note",
+      href: "/home",
+      refId: note.id,
+    });
   }
 
   return NextResponse.json({
     note: {
       body: note.body,
+      updatedAt: note.updatedAt,
+      updatedByName: who.short,
+    },
+  });
+}
+
+/** Clear the shared important note. */
+export async function DELETE() {
+  const who = await getCurrentMember();
+  if (!who) return NextResponse.json({ error: "Pick who you are" }, { status: 401 });
+
+  const note = await prisma.importantNote.upsert({
+    where: { id: "main" },
+    update: { body: "", updatedById: who.id },
+    create: { id: "main", body: "", updatedById: who.id },
+  });
+
+  await notifyEveryoneExcept(who.id, {
+    title: "Important note cleared",
+    body: `${who.short} deleted the pinned note.`,
+    kind: "note",
+    href: "/home",
+    refId: note.id,
+  });
+
+  return NextResponse.json({
+    note: {
+      body: "",
       updatedAt: note.updatedAt,
       updatedByName: who.short,
     },

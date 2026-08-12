@@ -77,12 +77,6 @@ function statusLabel(status: string) {
   return status;
 }
 
-function chipClass(active: boolean) {
-  return active
-    ? "rounded-full bg-ink px-3 py-1.5 text-xs font-semibold text-white"
-    : "rounded-full border border-line bg-card px-3 py-1.5 text-xs text-mute";
-}
-
 export function MoneyClient({ meId }: { meId: string }) {
   const [tab, setTab] = useState<"list" | "balances" | "settle">("list");
   const [rows, setRows] = useState<Row[]>([]);
@@ -252,140 +246,65 @@ function MasterLedger({
         />
       </div>
 
-      {/* Search + sort */}
-      <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+      {/* Search + filters */}
+      <div className="space-y-2">
         <input
           value={q}
           onChange={(e) => onQ(e.target.value)}
           placeholder="Search title, items, person, notes…"
           className="w-full rounded-xl border border-line bg-card px-3 py-2.5 text-sm outline-none focus:border-ink"
         />
-        <select
-          value={sort}
-          onChange={(e) => onSort(e.target.value)}
-          className="rounded-xl border border-line bg-card px-3 py-2.5 text-sm"
-        >
-          <option value="newest">Newest first</option>
-          <option value="oldest">Oldest first</option>
-          <option value="amount_high">Amount high → low</option>
-          <option value="amount_low">Amount low → high</option>
-        </select>
-      </div>
-
-      {/* Filters */}
-      <div className="space-y-2">
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          <button type="button" className={chipClass(type === "all")} onClick={() => onType("all")}>
-            All types
-          </button>
-          {EXPENSE_TYPES.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              className={chipClass(type === t.id)}
-              onClick={() => onType(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
-          <button
-            type="button"
-            className={chipClass(type === "settlement")}
-            onClick={() => onType("settlement")}
+        <div className="grid grid-cols-2 gap-2">
+          <select
+            value={type}
+            onChange={(e) => onType(e.target.value)}
+            className="rounded-xl border border-line bg-card px-3 py-2.5 text-sm"
           >
-            Settlements
-          </button>
-        </div>
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          <button type="button" className={chipClass(member === "all")} onClick={() => onMember("all")}>
-            Everyone
-          </button>
-          {MEMBERS.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              className={chipClass(member === m.id)}
-              onClick={() => onMember(m.id)}
-            >
-              {m.short}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          <button type="button" className={chipClass(month === "all")} onClick={() => onMonth("all")}>
-            All time
-          </button>
-          <button
-            type="button"
-            className={chipClass(month === monthKey())}
-            onClick={() => onMonth(monthKey())}
-          >
-            This month
-          </button>
-          <button
-            type="button"
-            className={chipClass(
-              month ===
-                monthKey(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1)),
-            )}
-            onClick={() =>
-              onMonth(monthKey(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1)))
-            }
-          >
-            Last month
-          </button>
-        </div>
-      </div>
-
-      {/* Breakdown strips */}
-      {summary && summary.byType.length > 0 ? (
-        <Card className="p-3">
-          <Label>Spend by type</Label>
-          <div className="mt-1 space-y-1.5">
-            {summary.byType.map((t) => {
-              const pct = summary.totalPaise > 0 ? Math.round((t.amountPaise / summary.totalPaise) * 100) : 0;
-              return (
-                <button
-                  key={t.type}
-                  type="button"
-                  onClick={() => onType(t.type)}
-                  className="grid w-full grid-cols-[88px_1fr_72px] items-center gap-2 text-left text-xs"
-                >
-                  <span className="truncate font-medium">{t.label}</span>
-                  <span className="h-1.5 overflow-hidden rounded-full bg-line">
-                    <span className="block h-full rounded-full bg-ink" style={{ width: `${pct}%` }} />
-                  </span>
-                  <span className="text-right tabular-nums">
-                    <Rupee paise={t.amountPaise} />
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </Card>
-      ) : null}
-
-      {summary && summary.byPayer.length > 0 ? (
-        <Card className="p-3">
-          <Label>Who paid (cash out)</Label>
-          <div className="mt-1 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-            {summary.byPayer.map((p) => (
-              <button
-                key={p.memberId}
-                type="button"
-                onClick={() => onMember(p.memberId)}
-                className="rounded-xl border border-line px-2 py-2 text-left"
-              >
-                <p className="font-semibold">{p.name}</p>
-                <p className="tabular-nums">
-                  <Rupee paise={p.amountPaise} />
-                </p>
-                <p className="text-mute">{p.count} entries</p>
-              </button>
+            <option value="all">All types</option>
+            {EXPENSE_TYPES.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.label}
+              </option>
             ))}
-          </div>
-        </Card>
-      ) : null}
+            <option value="settlement">Settlements</option>
+          </select>
+          <select
+            value={member}
+            onChange={(e) => onMember(e.target.value)}
+            className="rounded-xl border border-line bg-card px-3 py-2.5 text-sm"
+          >
+            <option value="all">Everyone</option>
+            {MEMBERS.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.short}
+              </option>
+            ))}
+          </select>
+          <select
+            value={month}
+            onChange={(e) => onMonth(e.target.value)}
+            className="rounded-xl border border-line bg-card px-3 py-2.5 text-sm"
+          >
+            <option value="all">All time</option>
+            <option value={monthKey()}>This month</option>
+            <option
+              value={monthKey(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1))}
+            >
+              Last month
+            </option>
+          </select>
+          <select
+            value={sort}
+            onChange={(e) => onSort(e.target.value)}
+            className="rounded-xl border border-line bg-card px-3 py-2.5 text-sm"
+          >
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="amount_high">Amount high → low</option>
+            <option value="amount_low">Amount low → high</option>
+          </select>
+        </div>
+      </div>
 
       {/* Day-grouped ledger */}
       {rows.length === 0 ? (
