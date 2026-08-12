@@ -8,7 +8,7 @@ export default async function ChoresPage() {
   if (!who) redirect("/who");
   return (
     <SiteChrome who={who.short}>
-      <ChoresClient />
+      <ChoresClient meId={who.id} />
     </SiteChrome>
   );
 }

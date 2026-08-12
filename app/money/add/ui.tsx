@@ -2,18 +2,17 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
-import { EXPENSE_TYPES } from "@/lib/types";
+import { EXPENSE_TYPES, expenseTypeFromParam } from "@/lib/types";
 import { MEMBERS } from "@/lib/members";
 import { Field, PrimaryButton, inputClass } from "@/components/ui";
 
 function FormInner({ meId }: { meId: string }) {
   const router = useRouter();
   const params = useSearchParams();
-  const preset = params.get("type") || "vegetables";
-  const [type, setType] = useState(preset);
-  const [title, setTitle] = useState(
-    preset === "vegetables" ? "Vegetables" : preset === "milk" ? "Milk" : "",
-  );
+  const initialType = expenseTypeFromParam(params.get("type"));
+  const [type, setType] = useState(initialType);
+  const [title, setTitle] = useState("");
+  const [titleTouched, setTitleTouched] = useState(false);
   const [amount, setAmount] = useState("");
   const [paidById, setPaidById] = useState(meId);
   const [split, setSplit] = useState<"everyone" | "selected" | "custom">("everyone");
@@ -33,8 +32,21 @@ function FormInner({ meId }: { meId: string }) {
     return t?.label ?? "";
   }, [type]);
 
+  function onTypeChange(next: string) {
+    setType(next as typeof type);
+    if (!titleTouched || title === defaultTitle) {
+      const label = EXPENSE_TYPES.find((x) => x.id === next)?.label ?? "";
+      setTitle(label);
+      setTitleTouched(false);
+    }
+  }
+
   async function save() {
     setError("");
+    if (!amount.trim()) {
+      setError("Enter an amount.");
+      return;
+    }
     setBusy(true);
     const payload = {
       type,
@@ -70,25 +82,22 @@ function FormInner({ meId }: { meId: string }) {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Add</h1>
+      <h1 className="text-xl font-semibold">Add expense</h1>
+      <p className="text-sm text-mute">Pick the category first — it won’t default to vegetables.</p>
 
-      <div className="flex flex-wrap gap-2">
-        {EXPENSE_TYPES.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => {
-              setType(t.id);
-              if (!title || title === defaultTitle) setTitle(t.label);
-            }}
-            className={`rounded-full px-3 py-1.5 text-sm ${
-              type === t.id ? "bg-ink text-white" : "border border-line bg-card"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Field label="In what">
+        <select
+          className={inputClass}
+          value={type}
+          onChange={(e) => onTypeChange(e.target.value)}
+        >
+          {EXPENSE_TYPES.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+      </Field>
 
       <Field label="Amount ₹">
         <input
@@ -101,8 +110,16 @@ function FormInner({ meId }: { meId: string }) {
         />
       </Field>
 
-      <Field label="What">
-        <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} />
+      <Field label="Description (optional)">
+        <input
+          className={inputClass}
+          placeholder={defaultTitle || "What was it for?"}
+          value={title}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            setTitleTouched(true);
+          }}
+        />
       </Field>
 
       {showLines ? (
@@ -117,19 +134,27 @@ function FormInner({ meId }: { meId: string }) {
       ) : null}
 
       {type === "milk" ? (
-        <p className="text-xs text-mute">Split uses only people who drink milk, unless you change split below.</p>
+        <p className="text-xs text-mute">
+          Split uses only people who drink milk, unless you change split below.
+        </p>
       ) : null}
 
       <Field label="Paid by">
         <select className={inputClass} value={paidById} onChange={(e) => setPaidById(e.target.value)}>
           {MEMBERS.map((m) => (
-            <option key={m.id} value={m.id}>{m.name}</option>
+            <option key={m.id} value={m.id}>
+              {m.name}
+            </option>
           ))}
         </select>
       </Field>
 
       <Field label="Split">
-        <select className={inputClass} value={split} onChange={(e) => setSplit(e.target.value as typeof split)}>
+        <select
+          className={inputClass}
+          value={split}
+          onChange={(e) => setSplit(e.target.value as typeof split)}
+        >
           <option value="everyone">Everyone</option>
           <option value="selected">Selected people</option>
           <option value="custom">Custom amounts</option>

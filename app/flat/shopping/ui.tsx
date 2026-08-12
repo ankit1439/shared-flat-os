@@ -57,35 +57,81 @@ export function ShoppingClient() {
     await load();
   }
 
+  async function cancel(id: string) {
+    await fetch("/api/shopping", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, action: "cancel" }),
+    });
+    await load();
+  }
+
   const needed = items.filter((i) => i.status === "needed");
   const done = items.filter((i) => i.status !== "needed");
 
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">Shopping</h1>
+      <p className="text-sm text-mute">Things to buy for the flat.</p>
       <div className="flex gap-2">
-        <input className={inputClass} placeholder="Milk, eggs…" value={name} onChange={(e) => setName(e.target.value)} />
-        <button onClick={add} className="rounded-xl bg-ink px-4 text-sm font-semibold text-white">Add</button>
+        <input
+          className={inputClass}
+          placeholder="Milk, eggs, detergent…"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <button
+          type="button"
+          onClick={add}
+          className="rounded-xl bg-ink px-4 text-sm font-semibold text-white"
+        >
+          Add
+        </button>
       </div>
 
-      {needed.map((i) => (
-        <Card key={i.id}>
-          <p className="font-medium">{i.name}</p>
-          <p className="text-xs text-mute">Added by {i.addedBy.name.split(" ")[0]}</p>
-          {buyId === i.id ? (
-            <div className="mt-3 space-y-2">
-              <input className={inputClass} inputMode="decimal" placeholder="Price ₹ (optional)" value={amount} onChange={(e) => setAmount(e.target.value)} />
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={asExpense} onChange={(e) => setAsExpense(e.target.checked)} />
-                Also add as shared expense
-              </label>
-              <PrimaryButton onClick={() => buy(i.id)}>Mark purchased</PrimaryButton>
-            </div>
-          ) : (
-            <button onClick={() => setBuyId(i.id)} className="mt-2 text-sm underline">Purchased</button>
-          )}
-        </Card>
-      ))}
+      {needed.length === 0 ? (
+        <p className="text-sm text-mute">Shopping list is empty — add something above.</p>
+      ) : (
+        needed.map((i) => (
+          <Card key={i.id}>
+            <p className="font-medium">{i.name}</p>
+            <p className="text-xs text-mute">Added by {i.addedBy.name.split(" ")[0]}</p>
+            {buyId === i.id ? (
+              <div className="mt-3 space-y-2">
+                <input
+                  className={inputClass}
+                  inputMode="decimal"
+                  placeholder="Price ₹ (optional)"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                />
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={asExpense}
+                    onChange={(e) => setAsExpense(e.target.checked)}
+                  />
+                  Also add as shared expense (Groceries)
+                </label>
+                <PrimaryButton onClick={() => buy(i.id)}>Mark purchased</PrimaryButton>
+              </div>
+            ) : (
+              <div className="mt-2 flex gap-3">
+                <button type="button" onClick={() => setBuyId(i.id)} className="text-sm underline">
+                  Purchased
+                </button>
+                <button
+                  type="button"
+                  onClick={() => cancel(i.id)}
+                  className="text-sm text-owe underline"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+          </Card>
+        ))
+      )}
 
       {done.length > 0 ? (
         <div className="space-y-2">
@@ -93,7 +139,12 @@ export function ShoppingClient() {
           {done.map((i) => (
             <p key={i.id} className="text-sm text-mute">
               {i.name}
-              {i.amountPaise ? <> · <Rupee paise={i.amountPaise} /></> : null}
+              {i.amountPaise ? (
+                <>
+                  {" "}
+                  · <Rupee paise={i.amountPaise} />
+                </>
+              ) : null}
               {i.purchasedBy ? ` · ${i.purchasedBy.name.split(" ")[0]}` : ""} · {i.status}
             </p>
           ))}

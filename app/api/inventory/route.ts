@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentMember } from "@/lib/session";
+import { ensureFlatBasics } from "@/lib/flat-setup";
 
 export async function GET() {
   const who = await getCurrentMember();
   if (!who) return NextResponse.json({ error: "Pick who you are" }, { status: 401 });
+
+  await ensureFlatBasics();
+
   const items = await prisma.inventoryItem.findMany({ orderBy: { name: "asc" } });
   return NextResponse.json({ items });
 }
@@ -40,4 +44,14 @@ export async function PATCH(request: Request) {
     },
   });
   return NextResponse.json({ item });
+}
+
+export async function DELETE(request: Request) {
+  const who = await getCurrentMember();
+  if (!who) return NextResponse.json({ error: "Pick who you are" }, { status: 401 });
+  const body = await request.json().catch(() => ({}));
+  const id = String(body.id ?? "");
+  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  await prisma.inventoryItem.delete({ where: { id } });
+  return NextResponse.json({ ok: true });
 }

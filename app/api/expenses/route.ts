@@ -3,11 +3,11 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getCurrentMember } from "@/lib/session";
 import { MEMBER_IDS, memberById } from "@/lib/members";
-import { EXPENSE_TYPES } from "@/lib/types";
+import { EXPENSE_TYPE_IDS } from "@/lib/types";
 import { rupeesToPaise, splitEqual } from "@/lib/money";
 
 const bodySchema = z.object({
-  type: z.enum(EXPENSE_TYPES.map((t) => t.id) as [string, ...string[]]),
+  type: z.enum(EXPENSE_TYPE_IDS as [string, ...string[]]),
   title: z.string().min(1).max(120),
   amountRupees: z.union([z.number(), z.string()]),
   paidById: z.string(),

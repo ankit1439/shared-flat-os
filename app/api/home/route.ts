@@ -4,12 +4,14 @@ import { getCurrentMember } from "@/lib/session";
 import { MEMBERS, shortName } from "@/lib/members";
 import { computeNets, myOweReceive } from "@/lib/balances";
 import { expireOldReminders } from "@/lib/reminders";
+import { ensureFlatBasics } from "@/lib/flat-setup";
 
 export async function GET() {
   const who = await getCurrentMember();
   if (!who) return NextResponse.json({ error: "Pick who you are" }, { status: 401 });
 
   await expireOldReminders();
+  await ensureFlatBasics();
 
   const [
     nets,
