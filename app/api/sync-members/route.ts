@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { MEMBERS } from "@/lib/members";
+import { getCurrentMember } from "@/lib/session";
 
 /** Sync the four roommate names from code into the database. */
 export async function POST() {
+  const who = await getCurrentMember();
+  if (!who) return NextResponse.json({ error: "Pick who you are" }, { status: 401 });
+
   const updated = [];
   for (const m of MEMBERS) {
     const row = await prisma.member.upsert({
