@@ -157,6 +157,34 @@ function WhoInner() {
             >
               {busy ? "Checking…" : step === "set" ? "Save PIN & continue" : "Unlock"}
             </button>
+            {step === "enter" ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={async () => {
+                  if (!pickedId) return;
+                  if (!confirm("Reset PIN for this person? They’ll set a new 4-digit PIN next.")) return;
+                  setBusy(true);
+                  setError("");
+                  const res = await fetch("/api/session", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ memberId: pickedId, action: "reset_pin" }),
+                  });
+                  setBusy(false);
+                  if (!res.ok) {
+                    setError("Could not reset PIN.");
+                    return;
+                  }
+                  setPin("");
+                  setPin2("");
+                  setStep("set");
+                }}
+                className="w-full py-2 text-sm text-mute underline"
+              >
+                Forgot PIN? Reset it
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={backToPick}

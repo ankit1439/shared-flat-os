@@ -32,12 +32,23 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const memberId = String(body.memberId ?? "");
-  const pin = String(body.pin ?? "");
-  const mode = String(body.mode ?? "login"); // "set" | "login"
   const member = memberById(memberId);
   if (!member) {
     return NextResponse.json({ error: "Unknown person" }, { status: 400 });
   }
+
+  // Clear PIN so this person can set a new one on next login
+  if (body.action === "reset_pin") {
+    await ensureMember(memberId, member.name);
+    await prisma.member.update({
+      where: { id: memberId },
+      data: { pinHash: null },
+    });
+    return NextResponse.json({ ok: true, memberId, hasPin: false, reset: true });
+  }
+
+  const pin = String(body.pin ?? "");
+  const mode = String(body.mode ?? "login"); // "set" | "login"
   if (!isValidPin(pin)) {
     return NextResponse.json({ error: "Enter a 4-digit PIN." }, { status: 400 });
   }
