@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Home, Wallet, Building2, Users, Bell } from "lucide-react";
 import { ClientOnly } from "@/components/ClientOnly";
 import { PushEnableButton } from "@/components/PushEnableButton";
+import { AutoPresenceCheck } from "@/components/AutoPresenceCheck";
 
 const NAV = [
   { href: "/home", label: "Home", icon: Home },
@@ -154,6 +155,9 @@ export function SiteChrome({
 
   return (
     <div className="mx-auto min-h-dvh w-full max-w-lg">
+      <ClientOnly>
+        <AutoPresenceCheck />
+      </ClientOnly>
       <header className="sticky top-0 z-20 border-b border-line bg-paper/90 px-4 py-3 backdrop-blur">
         <div className="flex items-center justify-between gap-3">
           <div>

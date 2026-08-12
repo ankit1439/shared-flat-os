@@ -126,8 +126,9 @@ function WhoInner() {
               </span>
               <input
                 className={`${inputClass} text-center text-2xl tracking-[0.4em]`}
+                type="password"
                 inputMode="numeric"
-                autoComplete="one-time-code"
+                autoComplete="off"
                 maxLength={4}
                 value={pin}
                 onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
@@ -139,8 +140,9 @@ function WhoInner() {
                 <span className="mb-1 block text-xs text-mute">Confirm PIN</span>
                 <input
                   className={`${inputClass} text-center text-2xl tracking-[0.4em]`}
+                  type="password"
                   inputMode="numeric"
-                  autoComplete="one-time-code"
+                  autoComplete="off"
                   maxLength={4}
                   value={pin2}
                   onChange={(e) => setPin2(e.target.value.replace(/\D/g, "").slice(0, 4))}

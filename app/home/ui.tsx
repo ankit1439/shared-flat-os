@@ -351,7 +351,8 @@ export function HomeClient() {
         </button>
         {locationMsg ? <p className="mt-2 text-xs text-mute">{locationMsg}</p> : null}
         <p className="mt-1 text-[11px] text-mute">
-          GPS compares you to the flat pin set in Flat → Flat info. Roommates get a notification.
+          GPS also runs automatically when you open the app (if location is allowed). Flat pin is
+          set in Flat → Flat info. Roommates get a notification when your status changes.
         </p>
       </Card>
 

@@ -83,6 +83,8 @@ export async function POST(request: Request) {
     distanceM = result.distanceM;
   }
 
+  if (source === "gps_auto") source = "gps";
+
   if (!state) state = "unknown";
 
   const previous = await prisma.presence.findUnique({ where: { memberId } });
