@@ -1,6 +1,6 @@
 export const MEMBERS = [
   { id: "ankit", name: "Ankit Joshi", short: "Ankit" },
-  { id: "jayash", name: "Jayash Ghelot", short: "Jayash" },
+  { id: "jayash", name: "Jayash Gahlot", short: "Jayash" },
   { id: "rahul", name: "Rahul Verma", short: "Rahul" },
   { id: "lakshit", name: "Lakshit Pareek", short: "Lakshit" },
 ] as const;
