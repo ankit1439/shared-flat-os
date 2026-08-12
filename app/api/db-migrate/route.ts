@@ -35,5 +35,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, resetAllPins: true, migrated: true });
   }
 
+  if (body.clearAmountRupees != null) {
+    const paise = Math.round(Number(body.clearAmountRupees) * 100);
+    if (Number.isFinite(paise) && paise > 0) {
+      const result = await prisma.expense.updateMany({
+        where: { voided: false, amountPaise: paise },
+        data: { voided: true },
+      });
+      return NextResponse.json({ ok: true, cleared: result.count, amountPaise: paise });
+    }
+  }
+
+  if (body.clearAllExpenses === true) {
+    const result = await prisma.expense.updateMany({
+      where: { voided: false },
+      data: { voided: true },
+    });
+    return NextResponse.json({ ok: true, cleared: result.count });
+  }
+
   return NextResponse.json({ ok: true, migrated: true });
 }

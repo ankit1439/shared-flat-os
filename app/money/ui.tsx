@@ -166,6 +166,7 @@ export function MoneyClient({ meId }: { meId: string }) {
             onMonth={setMonth}
             onSort={setSort}
             onQ={setQ}
+            onReload={load}
           />
         ) : null}
         {tab === "balances" && balances ? <BalancesView data={balances} /> : null}
@@ -192,6 +193,7 @@ function MasterLedger({
   onMonth,
   onSort,
   onQ,
+  onReload,
 }: {
   rows: Row[];
   summary: Summary | null;
@@ -205,8 +207,20 @@ function MasterLedger({
   onMonth: (v: string) => void;
   onSort: (v: string) => void;
   onQ: (v: string) => void;
+  onReload: () => void | Promise<void>;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
+
+  async function removeExpense(id: string) {
+    if (!confirm("Remove this expense from the ledger? Balances will update.")) return;
+    await fetch("/api/expenses", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    setOpenId(null);
+    await onReload();
+  }
 
   const groups = useMemo(() => {
     const map = new Map<string, { dayKey: string; date: string; weekday: string; rows: Row[]; spentPaise: number }>();
@@ -472,6 +486,16 @@ function MasterLedger({
                               </p>
                               <p className="text-sm">{row.notes}</p>
                             </div>
+                          ) : null}
+
+                          {row.kind === "expense" ? (
+                            <button
+                              type="button"
+                              onClick={() => removeExpense(row.id)}
+                              className="mt-3 text-xs font-semibold text-owe underline"
+                            >
+                              Delete expense
+                            </button>
                           ) : null}
 
                           <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-mute">

@@ -132,3 +132,24 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ expense }, { status: 201 });
 }
+
+/** Soft-delete (void) an expense so it leaves Money + balances. */
+export async function DELETE(request: Request) {
+  const who = await getCurrentMember();
+  if (!who) return NextResponse.json({ error: "Pick who you are" }, { status: 401 });
+
+  const body = await request.json().catch(() => ({}));
+  const id = String(body.id ?? "");
+  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+
+  const row = await prisma.expense.findUnique({ where: { id } });
+  if (!row || row.voided) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  await prisma.expense.update({
+    where: { id },
+    data: { voided: true },
+  });
+  return NextResponse.json({ ok: true });
+}
