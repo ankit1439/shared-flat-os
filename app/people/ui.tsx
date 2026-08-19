@@ -9,6 +9,7 @@ type Person = {
   name: string;
   short: string;
   netPaise: number;
+  vsMe: { owePaise: number; receivePaise: number } | null;
   presence: string;
   lastSeenAt?: string | null;
   keyLabel: string | null;
@@ -112,7 +113,23 @@ export function PeopleClient({ meId }: { meId: string }) {
                 </p>
               ) : null}
             </div>
-            <Rupee paise={p.netPaise} signed className="font-semibold" />
+            {p.id === meId ? (
+              <span className="text-xs text-mute">You</span>
+            ) : p.vsMe?.owePaise ? (
+              <span className="text-right text-sm font-semibold text-owe">
+                You owe
+                <br />
+                <Rupee paise={p.vsMe.owePaise} />
+              </span>
+            ) : p.vsMe?.receivePaise ? (
+              <span className="text-right text-sm font-semibold text-get">
+                Owes you
+                <br />
+                <Rupee paise={p.vsMe.receivePaise} />
+              </span>
+            ) : (
+              <span className="text-sm text-mute">Even</span>
+            )}
           </div>
           <p className="mt-2 text-sm text-mute">
             Key: {p.keyLabel ?? "—"} · Chore: {p.chore ?? "—"} · Milk:{" "}

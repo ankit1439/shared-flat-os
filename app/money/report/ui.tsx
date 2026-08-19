@@ -235,7 +235,8 @@ export function ReportClient() {
           <Card>
             <Label>Fair share balance</Label>
             <p className="mb-3 text-xs text-mute">
-              Paid from pocket vs your share of all bills this month.
+              Paid from pocket vs share of bills this month only. Who actually owes whom
+              (Jayash / Rahul / Lakshit separately, all time) is on Money → Balances.
             </p>
             <div className="space-y-3">
               {data.people.map((p) => (
@@ -254,10 +255,10 @@ export function ReportClient() {
                   </div>
                   <p className="mt-2 text-[11px] text-mute">
                     {p.netPaise > 0
-                      ? "Group owes them"
+                      ? "Paid more than their share this month"
                       : p.netPaise < 0
-                        ? "They owe the group"
-                        : "Settled for this month’s bills"}
+                        ? "Paid less than their share this month"
+                        : "Even on this month’s bills"}
                   </p>
                 </div>
               ))}

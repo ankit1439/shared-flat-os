@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentMember } from "@/lib/session";
 import { MEMBERS } from "@/lib/members";
-import { computeNets } from "@/lib/balances";
+import { computePairwise, moneyForMember, netsFromPairs } from "@/lib/balances";
 
 export async function GET() {
   const who = await getCurrentMember();
   if (!who) return NextResponse.json({ error: "Pick who you are" }, { status: 401 });
 
-  const [nets, presences, keys, chores, absences, milk] = await Promise.all([
-    computeNets(),
+  const [pairs, presences, keys, chores, absences, milk] = await Promise.all([
+    computePairwise(),
     prisma.presence.findMany(),
     prisma.keyItem.findMany({
       include: {
@@ -24,6 +24,10 @@ export async function GET() {
     prisma.milkParticipation.findMany(),
   ]);
 
+  const nets = netsFromPairs(pairs);
+  const mine = moneyForMember(pairs, who.id);
+  const vsMeById = Object.fromEntries(mine.withEach.map((p) => [p.memberId, p]));
+
   const people = MEMBERS.map((m) => {
     const key = keys.find((k) => k.assignments.some((a) => a.holderId === m.id));
     const chore = chores.find((c) => c.memberId === m.id);
@@ -35,6 +39,13 @@ export async function GET() {
     return {
       ...m,
       netPaise: nets[m.id] ?? 0,
+      vsMe:
+        m.id === who.id
+          ? null
+          : {
+              owePaise: vsMeById[m.id]?.owePaise ?? 0,
+              receivePaise: vsMeById[m.id]?.receivePaise ?? 0,
+            },
       presence: presence?.state ?? "unknown",
       lastSeenAt: presence?.lastSeenAt,
       keyLabel: key?.label ?? null,

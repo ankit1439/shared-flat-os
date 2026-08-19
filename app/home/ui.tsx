@@ -8,7 +8,16 @@ import { typeLabel } from "@/lib/types";
 
 type HomeData = {
   who: { id: string; short: string };
-  mine: { owePaise: number; receivePaise: number };
+  mine: {
+    owePaise: number;
+    receivePaise: number;
+    withEach: Array<{
+      memberId: string;
+      short: string;
+      owePaise: number;
+      receivePaise: number;
+    }>;
+  };
   people: Array<{ id: string; short: string; presence: string }>;
   homeCount: number;
   pendingForMe: Array<{ id: string; fromName: string; amountPaise: number; note: string | null }>;
@@ -356,20 +365,45 @@ export function HomeClient() {
         </p>
       </Card>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Card>
-          <Label>You owe</Label>
-          <p className="text-xl font-semibold text-owe">
-            <Rupee paise={data.mine.owePaise} />
+      <Card>
+        <Label>Between you and each person</Label>
+        <p className="mb-3 text-xs text-mute">Jayash, Rahul and Lakshit are kept separate — not one mixed total.</p>
+        <div className="space-y-2">
+          {(data.mine.withEach ?? []).map((p) => (
+            <div
+              key={p.memberId}
+              className="flex items-center justify-between gap-3 rounded-xl border border-line px-3 py-2.5"
+            >
+              <p className="font-medium">{p.short}</p>
+              {p.owePaise > 0 ? (
+                <p className="text-sm font-semibold text-owe">
+                  You owe <Rupee paise={p.owePaise} />
+                </p>
+              ) : p.receivePaise > 0 ? (
+                <p className="text-sm font-semibold text-get">
+                  Owes you <Rupee paise={p.receivePaise} />
+                </p>
+              ) : (
+                <p className="text-sm text-mute">Even</p>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-mute">
+          <p>
+            You owe in total{" "}
+            <span className="font-semibold text-owe">
+              <Rupee paise={data.mine.owePaise} />
+            </span>
           </p>
-        </Card>
-        <Card>
-          <Label>You receive</Label>
-          <p className="text-xl font-semibold text-get">
-            <Rupee paise={data.mine.receivePaise} />
+          <p className="text-right">
+            You receive in total{" "}
+            <span className="font-semibold text-get">
+              <Rupee paise={data.mine.receivePaise} />
+            </span>
           </p>
-        </Card>
-      </div>
+        </div>
+      </Card>
 
       {data.pendingForMe.length > 0 ? (
         <Card>

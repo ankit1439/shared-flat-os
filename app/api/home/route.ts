@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentMember } from "@/lib/session";
 import { MEMBERS, shortName } from "@/lib/members";
-import { computeNets, myOweReceive } from "@/lib/balances";
+import { computePairwise, moneyForMember } from "@/lib/balances";
 import { expireOldReminders } from "@/lib/reminders";
 import { ensureFlatBasics } from "@/lib/flat-setup";
 
@@ -14,7 +14,7 @@ export async function GET() {
   await ensureFlatBasics();
 
   const [
-    nets,
+    pairs,
     presences,
     pendingForMe,
     shoppingCount,
@@ -25,7 +25,7 @@ export async function GET() {
     openReminders,
     unreadCount,
   ] = await Promise.all([
-    computeNets(),
+    computePairwise(),
     prisma.presence.findMany(),
     prisma.settlement.findMany({
       where: { toId: who.id, status: "claimed" },
@@ -62,7 +62,7 @@ export async function GET() {
     prisma.notification.count({ where: { memberId: who.id, read: false } }),
   ]);
 
-  const mine = myOweReceive(nets, who.id);
+  const mine = moneyForMember(pairs, who.id);
   const people = MEMBERS.map((m) => {
     const p = presences.find((x) => x.memberId === m.id);
     return {

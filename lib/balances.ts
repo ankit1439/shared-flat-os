@@ -1,10 +1,43 @@
 import { prisma } from "./db";
-import { MEMBER_IDS } from "./members";
+import { MEMBERS, MEMBER_IDS, shortName } from "./members";
 
 export type NetMap = Record<string, number>;
 
-export async function computeNets(): Promise<NetMap> {
-  const nets: NetMap = Object.fromEntries(MEMBER_IDS.map((id) => [id, 0]));
+export type PairDebt = {
+  fromId: string;
+  toId: string;
+  amountPaise: number;
+};
+
+export type WithPerson = {
+  memberId: string;
+  short: string;
+  name: string;
+  /** What I owe this person. */
+  owePaise: number;
+  /** What this person owes me. */
+  receivePaise: number;
+};
+
+export type MemberMoney = {
+  owePaise: number;
+  receivePaise: number;
+  netPaise: number;
+  withEach: WithPerson[];
+};
+
+/**
+ * Person-to-person debts from existing expenses + approved settlements.
+ * Does not rewrite stored rows. Does not shuffle debt across people.
+ *
+ * If Ankit paid a bill, Jayash's share is a debt Jayash → Ankit only.
+ * A payment Ankit → Jayash only changes that pair.
+ */
+export async function computePairwise(): Promise<PairDebt[]> {
+  const owed: Record<string, Record<string, number>> = {};
+  for (const a of MEMBER_IDS) {
+    owed[a] = Object.fromEntries(MEMBER_IDS.map((b) => [b, 0]));
+  }
 
   const expenses = await prisma.expense.findMany({
     where: { voided: false },
@@ -12,9 +45,9 @@ export async function computeNets(): Promise<NetMap> {
   });
 
   for (const exp of expenses) {
-    nets[exp.paidById] = (nets[exp.paidById] ?? 0) + exp.amountPaise;
     for (const p of exp.participants) {
-      nets[p.memberId] = (nets[p.memberId] ?? 0) - p.sharePaise;
+      if (p.memberId === exp.paidById || p.sharePaise === 0) continue;
+      owed[p.memberId][exp.paidById] += p.sharePaise;
     }
   }
 
@@ -23,45 +56,63 @@ export async function computeNets(): Promise<NetMap> {
   });
 
   for (const s of settlements) {
-    nets[s.fromId] = (nets[s.fromId] ?? 0) + s.amountPaise;
-    nets[s.toId] = (nets[s.toId] ?? 0) - s.amountPaise;
+    if (s.fromId === s.toId || s.amountPaise === 0) continue;
+    // from paid to → from owes to less (or to now owes from).
+    owed[s.fromId][s.toId] -= s.amountPaise;
   }
 
+  const pairs: PairDebt[] = [];
+  for (let i = 0; i < MEMBER_IDS.length; i += 1) {
+    for (let j = i + 1; j < MEMBER_IDS.length; j += 1) {
+      const a = MEMBER_IDS[i];
+      const b = MEMBER_IDS[j];
+      const aOwesB = (owed[a][b] ?? 0) - (owed[b][a] ?? 0);
+      if (aOwesB > 0) pairs.push({ fromId: a, toId: b, amountPaise: aOwesB });
+      else if (aOwesB < 0) pairs.push({ fromId: b, toId: a, amountPaise: -aOwesB });
+    }
+  }
+  return pairs;
+}
+
+export function moneyForMember(pairs: PairDebt[], memberId: string): MemberMoney {
+  const withEach: WithPerson[] = MEMBERS.filter((m) => m.id !== memberId).map((m) => {
+    const owe =
+      pairs.find((p) => p.fromId === memberId && p.toId === m.id)?.amountPaise ?? 0;
+    const receive =
+      pairs.find((p) => p.fromId === m.id && p.toId === memberId)?.amountPaise ?? 0;
+    return {
+      memberId: m.id,
+      short: m.short,
+      name: m.name,
+      owePaise: owe,
+      receivePaise: receive,
+    };
+  });
+
+  const owePaise = withEach.reduce((s, p) => s + p.owePaise, 0);
+  const receivePaise = withEach.reduce((s, p) => s + p.receivePaise, 0);
+  return {
+    owePaise,
+    receivePaise,
+    netPaise: receivePaise - owePaise,
+    withEach,
+  };
+}
+
+/** Positive = should receive overall. Derived from pairs, not a second formula. */
+export function netsFromPairs(pairs: PairDebt[]): NetMap {
+  const nets: NetMap = Object.fromEntries(MEMBER_IDS.map((id) => [id, 0]));
+  for (const p of pairs) {
+    nets[p.fromId] = (nets[p.fromId] ?? 0) - p.amountPaise;
+    nets[p.toId] = (nets[p.toId] ?? 0) + p.amountPaise;
+  }
   return nets;
 }
 
-/** Positive = should receive. Suggest payments from debtors to creditors. */
-export function suggestTransfers(nets: NetMap): Array<{ fromId: string; toId: string; amountPaise: number }> {
-  const debtors = Object.entries(nets)
-    .filter(([, n]) => n < 0)
-    .map(([id, n]) => ({ id, left: -n }))
-    .sort((a, b) => b.left - a.left);
-  const creditors = Object.entries(nets)
-    .filter(([, n]) => n > 0)
-    .map(([id, n]) => ({ id, left: n }))
-    .sort((a, b) => b.left - a.left);
-
-  const out: Array<{ fromId: string; toId: string; amountPaise: number }> = [];
-  let i = 0;
-  let j = 0;
-  while (i < debtors.length && j < creditors.length) {
-    const pay = Math.min(debtors[i].left, creditors[j].left);
-    if (pay > 0) {
-      out.push({ fromId: debtors[i].id, toId: creditors[j].id, amountPaise: pay });
-      debtors[i].left -= pay;
-      creditors[j].left -= pay;
-    }
-    if (debtors[i].left === 0) i += 1;
-    if (creditors[j].left === 0) j += 1;
-  }
-  return out;
+export async function computeNets(): Promise<NetMap> {
+  return netsFromPairs(await computePairwise());
 }
 
-export function myOweReceive(nets: NetMap, memberId: string) {
-  const mine = nets[memberId] ?? 0;
-  return {
-    owePaise: mine < 0 ? -mine : 0,
-    receivePaise: mine > 0 ? mine : 0,
-    netPaise: mine,
-  };
+export function pairLabel(pair: PairDebt) {
+  return `${shortName(pair.fromId)} owes ${shortName(pair.toId)}`;
 }

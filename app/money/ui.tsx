@@ -55,10 +55,29 @@ type Summary = {
   byPayer: Array<{ memberId: string; name: string; count: number; amountPaise: number }>;
 };
 
+type WithPerson = {
+  memberId: string;
+  short: string;
+  name: string;
+  owePaise: number;
+  receivePaise: number;
+};
+
+type PairDebt = {
+  fromId: string;
+  toId: string;
+  amountPaise: number;
+};
+
 type Balances = {
-  mine: { owePaise: number; receivePaise: number; netPaise: number };
+  mine: {
+    owePaise: number;
+    receivePaise: number;
+    netPaise: number;
+    withEach: WithPerson[];
+  };
   people: Array<{ id: string; short: string; netPaise: number }>;
-  suggestions: Array<{ fromId: string; toId: string; amountPaise: number }>;
+  pairs: PairDebt[];
 };
 
 function splitLabel(method: string) {
@@ -170,7 +189,9 @@ export function MoneyClient({ meId }: { meId: string }) {
           />
         ) : null}
         {tab === "balances" && balances ? <BalancesView data={balances} /> : null}
-        {tab === "settle" ? <SettleView meId={meId} onDone={load} /> : null}
+        {tab === "settle" ? (
+          <SettleView meId={meId} withEach={balances?.mine.withEach ?? []} onDone={load} />
+        ) : null}
 
         <Link href="/money/report" className="block text-center text-sm text-mute underline">
           Monthly report →
@@ -543,63 +564,65 @@ function BalancesView({ data }: { data: Balances }) {
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
         <Card>
-          <Label>You owe</Label>
+          <Label>You owe in total</Label>
           <p className="text-xl font-semibold text-owe">
             <Rupee paise={data.mine.owePaise} />
           </p>
+          <p className="mt-1 text-[11px] text-mute">Sum of each person below</p>
         </Card>
         <Card>
-          <Label>You receive</Label>
+          <Label>You receive in total</Label>
           <p className="text-xl font-semibold text-get">
             <Rupee paise={data.mine.receivePaise} />
           </p>
+          <p className="mt-1 text-[11px] text-mute">Sum of each person below</p>
         </Card>
       </div>
       <Card>
-        <Label>Net position</Label>
-        <div className="overflow-hidden rounded-xl border border-line">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-paper text-left text-[11px] text-mute">
-                <th className="px-3 py-2 font-medium">Person</th>
-                <th className="px-3 py-2 text-right font-medium">Net</th>
-                <th className="px-3 py-2 text-right font-medium">Meaning</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.people.map((p) => (
-                <tr key={p.id} className="border-t border-line">
-                  <td className="px-3 py-2 font-medium">{p.short}</td>
-                  <td className="px-3 py-2 text-right">
-                    <Rupee paise={p.netPaise} signed />
-                  </td>
-                  <td className="px-3 py-2 text-right text-xs text-mute">
-                    {p.netPaise > 0 ? "Should receive" : p.netPaise < 0 ? "Should pay" : "Even"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <Label>You and each roommate</Label>
+        <p className="mb-3 text-xs text-mute">
+          These stay separate. Paying Jayash does not change what you owe Rahul or Lakshit.
+        </p>
+        <div className="space-y-2">
+          {data.mine.withEach.map((p) => (
+            <div
+              key={p.memberId}
+              className="flex items-center justify-between gap-3 rounded-xl border border-line px-3 py-3"
+            >
+              <p className="font-semibold">{p.short}</p>
+              {p.owePaise > 0 ? (
+                <p className="text-sm font-semibold text-owe">
+                  You owe <Rupee paise={p.owePaise} />
+                </p>
+              ) : p.receivePaise > 0 ? (
+                <p className="text-sm font-semibold text-get">
+                  Owes you <Rupee paise={p.receivePaise} />
+                </p>
+              ) : (
+                <p className="text-sm text-mute">Even</p>
+              )}
+            </div>
+          ))}
         </div>
       </Card>
       <Card>
-        <Label>Suggested payments</Label>
-        {data.suggestions.length === 0 ? (
+        <Label>Everyone who owes whom</Label>
+        {data.pairs.length === 0 ? (
           <p className="text-sm text-mute">All settled.</p>
         ) : (
           <div className="overflow-hidden rounded-xl border border-line">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-paper text-left text-[11px] text-mute">
-                  <th className="px-3 py-2 font-medium">From</th>
-                  <th className="px-3 py-2 font-medium">To</th>
+                  <th className="px-3 py-2 font-medium">Who</th>
+                  <th className="px-3 py-2 font-medium">Owes</th>
                   <th className="px-3 py-2 text-right font-medium">Amount</th>
                 </tr>
               </thead>
               <tbody>
-                {data.suggestions.map((s, i) => (
-                  <tr key={i} className="border-t border-line">
-                    <td className="px-3 py-2">{shortName(s.fromId)}</td>
+                {data.pairs.map((s) => (
+                  <tr key={`${s.fromId}-${s.toId}`} className="border-t border-line">
+                    <td className="px-3 py-2 font-medium">{shortName(s.fromId)}</td>
                     <td className="px-3 py-2">{shortName(s.toId)}</td>
                     <td className="px-3 py-2 text-right font-semibold">
                       <Rupee paise={s.amountPaise} />
@@ -615,7 +638,20 @@ function BalancesView({ data }: { data: Balances }) {
   );
 }
 
-function SettleView({ meId, onDone }: { meId: string; onDone: () => void }) {
+function paiseToInput(paise: number) {
+  const n = paise / 100;
+  return Number.isInteger(n) ? String(n) : n.toFixed(2);
+}
+
+function SettleView({
+  meId,
+  withEach,
+  onDone,
+}: {
+  meId: string;
+  withEach: WithPerson[];
+  onDone: () => void;
+}) {
   const others = useMemo(() => MEMBERS.filter((m) => m.id !== meId), [meId]);
   const [toId, setToId] = useState<string>(others[0]?.id ?? "");
   const [amount, setAmount] = useState("");
@@ -644,6 +680,12 @@ function SettleView({ meId, onDone }: { meId: string; onDone: () => void }) {
   useEffect(() => {
     loadSettlements();
   }, []);
+
+  useEffect(() => {
+    const vs = withEach.find((p) => p.memberId === toId);
+    if (!vs || vs.owePaise <= 0) return;
+    setAmount((current) => (current ? current : paiseToInput(vs.owePaise)));
+  }, [withEach, toId]);
 
   async function claim() {
     setMsg("");
@@ -675,6 +717,13 @@ function SettleView({ meId, onDone }: { meId: string; onDone: () => void }) {
   }
 
   const waitingOnMe = list.filter((s) => s.status === "claimed" && s.toId === meId);
+  const vsSelected = withEach.find((p) => p.memberId === toId);
+
+  function pickPerson(id: string) {
+    setToId(id);
+    const vs = withEach.find((p) => p.memberId === id);
+    if (vs && vs.owePaise > 0) setAmount(paiseToInput(vs.owePaise));
+  }
 
   return (
     <div className="space-y-3">
@@ -684,7 +733,7 @@ function SettleView({ meId, onDone }: { meId: string; onDone: () => void }) {
           <select
             className="w-full rounded-xl border border-line bg-paper px-3 py-2.5"
             value={toId}
-            onChange={(e) => setToId(e.target.value)}
+            onChange={(e) => pickPerson(e.target.value)}
           >
             {others.map((m) => (
               <option key={m.id} value={m.id}>
@@ -692,6 +741,17 @@ function SettleView({ meId, onDone }: { meId: string; onDone: () => void }) {
               </option>
             ))}
           </select>
+          {vsSelected?.owePaise ? (
+            <p className="text-sm text-owe">
+              You owe {vsSelected.short} <Rupee paise={vsSelected.owePaise} />
+            </p>
+          ) : vsSelected?.receivePaise ? (
+            <p className="text-sm text-get">
+              {vsSelected.short} owes you <Rupee paise={vsSelected.receivePaise} />
+            </p>
+          ) : vsSelected ? (
+            <p className="text-sm text-mute">You are even with {vsSelected.short}.</p>
+          ) : null}
           <input
             inputMode="decimal"
             placeholder="Amount ₹"
